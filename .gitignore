@@ -1,0 +1,9 @@
+# Build artifacts
+gdrive-sync
+gdrive-sync-linux
+
+# App data
+.gdrive-sync/
+
+# OS
+.DS_Store
