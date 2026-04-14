@@ -6,6 +6,7 @@ export interface Config {
   local_sync_dir: string;
   chunk_size_mb: number;
   max_workers: number;
+  ignore_patterns: string[];
   distribution_targets: DistTarget[];
 }
 

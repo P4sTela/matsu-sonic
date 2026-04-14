@@ -111,7 +111,7 @@ func (e *SyncEngine) StartFull(ctx context.Context) error {
 		return fmt.Errorf("list files: %w", err)
 	}
 
-	// Separate folders and files
+	// Separate folders and files, apply ignore patterns
 	var folders, regularFiles []*driveapi.File
 	for _, f := range files {
 		if f.MimeType == "application/vnd.google-apps.folder" {
@@ -119,6 +119,10 @@ func (e *SyncEngine) StartFull(ctx context.Context) error {
 		} else {
 			regularFiles = append(regularFiles, f)
 		}
+	}
+	regularFiles, ignoredCount := e.filterIgnored(regularFiles)
+	if ignoredCount > 0 {
+		log.Printf("[sync] full: %d files ignored by patterns", ignoredCount)
 	}
 
 	// Set up progress tracking
@@ -216,7 +220,7 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 		e.handleRemoval(id)
 	}
 
-	// Separate folders and files
+	// Separate folders and files, apply ignore patterns
 	var folders, regularFiles []*driveapi.File
 	for _, f := range changedFiles {
 		if f.MimeType == "application/vnd.google-apps.folder" {
@@ -224,6 +228,10 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 		} else {
 			regularFiles = append(regularFiles, f)
 		}
+	}
+	regularFiles, ignoredCount := e.filterIgnored(regularFiles)
+	if ignoredCount > 0 {
+		log.Printf("[sync] incremental: %d files ignored by patterns", ignoredCount)
 	}
 
 	tracker := NewProgressTracker(len(regularFiles))
@@ -561,6 +569,9 @@ func (e *SyncEngine) DryRun(ctx context.Context) ([]DiffEntry, error) {
 		if f.MimeType == "application/vnd.google-apps.folder" {
 			continue
 		}
+		if e.isIgnored(f) {
+			continue
+		}
 
 		local, _ := e.store.GetFile(f.Id)
 		if !NeedsSync(f, local) {
@@ -584,6 +595,33 @@ func (e *SyncEngine) DryRun(ctx context.Context) ([]DiffEntry, error) {
 	}
 
 	return entries, nil
+}
+
+// isIgnored checks if a file matches any of the configured ignore patterns.
+func (e *SyncEngine) isIgnored(file *driveapi.File) bool {
+	for _, pattern := range e.cfg.IgnorePatterns {
+		if matched, _ := filepath.Match(pattern, file.Name); matched {
+			return true
+		}
+	}
+	return false
+}
+
+// filterIgnored returns files not matching any ignore pattern, plus a count of ignored.
+func (e *SyncEngine) filterIgnored(files []*driveapi.File) ([]*driveapi.File, int) {
+	if len(e.cfg.IgnorePatterns) == 0 {
+		return files, 0
+	}
+	var kept []*driveapi.File
+	ignored := 0
+	for _, f := range files {
+		if e.isIgnored(f) {
+			ignored++
+		} else {
+			kept = append(kept, f)
+		}
+	}
+	return kept, ignored
 }
 
 // isFatalError returns true for errors that should stop the entire sync.

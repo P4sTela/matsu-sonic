@@ -10,5 +10,8 @@ gdrive-sync-linux
 client_secret_*.json
 token.json
 
+# direnv
+.direnv/
+
 # OS
 .DS_Store

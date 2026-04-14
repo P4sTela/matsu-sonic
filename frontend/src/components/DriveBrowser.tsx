@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Folder, File, ArrowUp, Check } from "lucide-react";
+import { Folder, File, ArrowUp, Check, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -17,10 +17,11 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (folderId: string, folderName: string) => void;
+  onIgnore?: (name: string) => void;
   title?: string;
 }
 
-export function DriveBrowser({ open, onOpenChange, onSelect, title = "Select Drive Folder" }: Props) {
+export function DriveBrowser({ open, onOpenChange, onSelect, onIgnore, title = "Select Drive Folder" }: Props) {
   const [result, setResult] = useState<DriveBrowseResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,19 +168,32 @@ export function DriveBrowser({ open, onOpenChange, onSelect, title = "Select Dri
                       )}
                       <span className="truncate">{item.name}</span>
                     </button>
-                    {item.is_folder && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="shrink-0 h-7 w-7 p-0"
-                        onClick={() => {
-                          onSelect(item.id, item.name);
-                          onOpenChange(false);
-                        }}
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {onIgnore && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          title={`Ignore "${item.name}"`}
+                          onClick={() => onIgnore(item.name)}
+                        >
+                          <EyeOff className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {item.is_folder && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            onSelect(item.id, item.name);
+                            onOpenChange(false);
+                          }}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
                 {result?.items?.length === 0 && (

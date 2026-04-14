@@ -30,6 +30,7 @@ type Config struct {
 	ChunkSizeMB     int              `json:"chunk_size_mb"`
 	MaxWorkers      int              `json:"max_workers"`
 	RevisionNaming  string           `json:"revision_naming"`
+	IgnorePatterns  []string         `json:"ignore_patterns"`
 	DistTargets     []DistTargetConf `json:"distribution_targets"`
 }
 

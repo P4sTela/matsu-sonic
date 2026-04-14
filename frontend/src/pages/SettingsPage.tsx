@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, CheckCircle, AlertCircle, FolderOpen, Trash2 } from "lucide-react";
+import { Save, CheckCircle, AlertCircle, FolderOpen, Trash2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -174,6 +174,51 @@ export function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Ignore Patterns</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Glob patterns to exclude from sync (e.g. <code>*.mp4</code>, <code>backup_*</code>). Matched against file names.
+          </p>
+          <div className="space-y-2">
+            {(draft.ignore_patterns ?? []).map((pattern, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={pattern}
+                  onChange={(e) => {
+                    const next = [...(draft.ignore_patterns ?? [])];
+                    next[i] = e.target.value;
+                    update({ ignore_patterns: next });
+                  }}
+                  className="flex-1 font-mono text-sm"
+                  placeholder="*.mp4"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const next = (draft.ignore_patterns ?? []).filter((_, j) => j !== i);
+                    update({ ignore_patterns: next });
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => update({ ignore_patterns: [...(draft.ignore_patterns ?? []), ""] })}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Pattern
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Danger Zone</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -216,6 +261,12 @@ export function SettingsPage() {
         open={driveBrowserOpen}
         onOpenChange={setDriveBrowserOpen}
         onSelect={(folderId) => update({ sync_folder_id: folderId })}
+        onIgnore={(name) => {
+          const current = draft?.ignore_patterns ?? [];
+          if (!current.includes(name)) {
+            update({ ignore_patterns: [...current, name] });
+          }
+        }}
         title="Select Drive Folder"
       />
     </div>
