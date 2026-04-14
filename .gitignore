@@ -6,5 +6,9 @@ gdrive-sync-linux
 .gdrive-sync/
 [dD]ownloads/
 
+# Secrets
+client_secret_*.json
+token.json
+
 # OS
 .DS_Store
