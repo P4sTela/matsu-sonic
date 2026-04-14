@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSync } from "@/hooks/useSync";
+import { useSyncContext } from "@/hooks/SyncProvider";
 
 export function LogPage() {
-  const { logs } = useSync();
+  const { logs } = useSyncContext();
 
   return (
     <Card>

@@ -43,6 +43,12 @@ func (db *DB) Conn() *sql.DB {
 	return db.conn
 }
 
+// ClearAll deletes all synced files and sync run records.
+func (db *DB) ClearAll() error {
+	_, err := db.conn.Exec(`DELETE FROM synced_files; DELETE FROM sync_runs; DELETE FROM downloaded_revisions; DELETE FROM distribution_jobs;`)
+	return err
+}
+
 var migrations = []string{
 	// v1: initial schema
 	`CREATE TABLE IF NOT EXISTS synced_files (

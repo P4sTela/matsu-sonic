@@ -49,6 +49,13 @@ func (db *DB) GetLastChangeToken() (string, error) {
 	return token.String, nil
 }
 
+// ClearChangeTokens nullifies all change tokens so the next incremental sync
+// falls back to a full sync (used after file records are manually deleted).
+func (db *DB) ClearChangeTokens() error {
+	_, err := db.conn.Exec(`UPDATE sync_runs SET change_token = NULL`)
+	return err
+}
+
 // ListRuns returns the most recent sync runs.
 func (db *DB) ListRuns(limit int) ([]SyncRun, error) {
 	if limit <= 0 {

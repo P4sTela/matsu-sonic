@@ -27,3 +27,28 @@ func (h *Handler) GetFile(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, f)
 }
+
+// DeleteFiles removes selected file records from the database.
+func (h *Handler) DeleteFiles(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		FileIDs []string `json:"file_ids"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	deleted := 0
+	for _, id := range req.FileIDs {
+		if err := h.Store.DeleteFile(id); err == nil {
+			deleted++
+		}
+	}
+
+	// Clear change tokens so the next incremental sync re-discovers deleted files via full sync.
+	if deleted > 0 {
+		_ = h.Store.ClearChangeTokens()
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"deleted": deleted})
+}

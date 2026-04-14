@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"reflect"
 
 	"github.com/P4sTela/matsu-sonic/internal/config"
+	"github.com/P4sTela/matsu-sonic/internal/distribution"
 	"github.com/P4sTela/matsu-sonic/internal/drive"
 	"github.com/P4sTela/matsu-sonic/internal/store"
 	msync "github.com/P4sTela/matsu-sonic/internal/sync"
@@ -13,11 +16,25 @@ import (
 
 // Handler holds shared dependencies for all endpoint handlers.
 type Handler struct {
-	Config     *config.Config
-	ConfigPath string
-	Store      *store.DB
-	Drive      *drive.DriveClient
-	Engine     *msync.SyncEngine
+	Config      *config.Config
+	ConfigPath  string
+	Store       *store.DB
+	Drive       *drive.DriveClient
+	Engine      *msync.SyncEngine
+	DistManager *distribution.Manager
+}
+
+// ReinitDrive attempts to create a new Drive client from current config.
+// Called after config changes that may affect credentials.
+func (h *Handler) ReinitDrive() {
+	drv, err := drive.NewDriveClient(context.Background(), h.Config)
+	if err != nil {
+		log.Printf("[handler] Drive client reinit failed: %v", err)
+		return
+	}
+	h.Drive = drv
+	h.Engine.SetDriveClient(drv)
+	log.Println("[handler] Drive client reinitialized")
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

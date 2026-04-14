@@ -12,17 +12,25 @@ type ProgressEvent struct {
 	Error           string  `json:"error,omitempty"`
 }
 
+// ActiveDownload represents a single file being downloaded by a worker.
+type ActiveDownload struct {
+	FileID   string  `json:"file_id"`
+	FileName string  `json:"file_name"`
+	Progress float64 `json:"progress"` // 0.0 ~ 1.0
+}
+
 // ProgressSnapshot is a thread-safe copy of the current sync state.
 type ProgressSnapshot struct {
-	TotalFiles          int      `json:"total_files"`
-	CompletedFiles      int      `json:"completed_files"`
-	FailedFiles         int      `json:"failed_files"`
-	SkippedFiles        int      `json:"skipped_files"`
-	BytesDownloaded     int64    `json:"bytes_downloaded"`
-	CurrentFile         string   `json:"current_file"`
-	CurrentFileProgress float64  `json:"current_file_progress"`
-	IsRunning           bool     `json:"is_running"`
-	Errors              []string `json:"errors"`
+	TotalFiles          int              `json:"total_files"`
+	CompletedFiles      int              `json:"completed_files"`
+	FailedFiles         int              `json:"failed_files"`
+	SkippedFiles        int              `json:"skipped_files"`
+	BytesDownloaded     int64            `json:"bytes_downloaded"`
+	CurrentFile         string           `json:"current_file"`
+	CurrentFileProgress float64          `json:"current_file_progress"`
+	ActiveDownloads     []ActiveDownload `json:"active_downloads"`
+	IsRunning           bool             `json:"is_running"`
+	Errors              []string         `json:"errors"`
 }
 
 const maxErrors = 20
@@ -37,6 +45,7 @@ type ProgressTracker struct {
 	bytesDownloaded int64
 	currentFile     string
 	currentProgress float64
+	activeDownloads map[string]ActiveDownload
 	isRunning       bool
 	errors          []string
 }
@@ -44,8 +53,9 @@ type ProgressTracker struct {
 // NewProgressTracker creates a tracker with the given total file count.
 func NewProgressTracker(totalFiles int) *ProgressTracker {
 	return &ProgressTracker{
-		totalFiles: totalFiles,
-		isRunning:  true,
+		totalFiles:      totalFiles,
+		isRunning:       true,
+		activeDownloads: make(map[string]ActiveDownload),
 	}
 }
 
@@ -58,18 +68,26 @@ func (t *ProgressTracker) Apply(e ProgressEvent) {
 	case "file_start":
 		t.currentFile = e.FileName
 		t.currentProgress = 0
+		t.activeDownloads[e.FileID] = ActiveDownload{
+			FileID: e.FileID, FileName: e.FileName, Progress: 0,
+		}
 	case "file_progress":
 		t.currentFile = e.FileName
 		t.currentProgress = e.FileProgress
 		t.bytesDownloaded += e.BytesDownloaded
+		t.activeDownloads[e.FileID] = ActiveDownload{
+			FileID: e.FileID, FileName: e.FileName, Progress: e.FileProgress,
+		}
 	case "file_done":
 		t.completedFiles++
 		t.currentProgress = 1.0
 		t.bytesDownloaded += e.BytesDownloaded
+		delete(t.activeDownloads, e.FileID)
 	case "file_skip":
 		t.skippedFiles++
 	case "file_error":
 		t.failedFiles++
+		delete(t.activeDownloads, e.FileID)
 		if len(t.errors) < maxErrors {
 			t.errors = append(t.errors, e.Error)
 		}
@@ -86,6 +104,11 @@ func (t *ProgressTracker) Snapshot() ProgressSnapshot {
 	errs := make([]string, len(t.errors))
 	copy(errs, t.errors)
 
+	active := make([]ActiveDownload, 0, len(t.activeDownloads))
+	for _, d := range t.activeDownloads {
+		active = append(active, d)
+	}
+
 	return ProgressSnapshot{
 		TotalFiles:          t.totalFiles,
 		CompletedFiles:      t.completedFiles,
@@ -94,6 +117,7 @@ func (t *ProgressTracker) Snapshot() ProgressSnapshot {
 		BytesDownloaded:     t.bytesDownloaded,
 		CurrentFile:         t.currentFile,
 		CurrentFileProgress: t.currentProgress,
+		ActiveDownloads:     active,
 		IsRunning:           t.isRunning,
 		Errors:              errs,
 	}

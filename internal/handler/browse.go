@@ -10,8 +10,7 @@ import (
 func (h *Handler) BrowseDirectory(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
-		home, _ := os.UserHomeDir()
-		path = home
+		path, _ = os.Getwd()
 	}
 
 	entries, err := os.ReadDir(path)
@@ -39,9 +38,30 @@ func (h *Handler) BrowseDirectory(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	cwd, _ := os.Getwd()
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"current": path,
 		"parent":  filepath.Dir(path),
+		"cwd":     cwd,
 		"items":   items,
 	})
+}
+
+// MakeDirectory creates a new directory.
+func (h *Handler) MakeDirectory(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := decodeJSON(r, &req); err != nil || req.Path == "" {
+		writeError(w, http.StatusBadRequest, "path is required")
+		return
+	}
+
+	if err := os.MkdirAll(req.Path, 0o755); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "created", "path": req.Path})
 }

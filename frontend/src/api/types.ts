@@ -31,6 +31,12 @@ export interface SyncedFile {
   is_folder: boolean;
 }
 
+export interface ActiveDownload {
+  file_id: string;
+  file_name: string;
+  progress: number; // 0.0 ~ 1.0
+}
+
 export interface SyncProgress {
   total_files: number;
   completed_files: number;
@@ -39,6 +45,7 @@ export interface SyncProgress {
   bytes_downloaded: number;
   current_file: string;
   current_file_progress: number;
+  active_downloads: ActiveDownload[];
   is_running: boolean;
   errors: string[];
 }
@@ -86,7 +93,25 @@ export interface DistJob {
 export interface BrowseResult {
   current: string;
   parent: string;
+  cwd: string;
   items: { name: string; path: string; is_dir: boolean }[];
+}
+
+export interface DiffEntry {
+  file_id: string;
+  name: string;
+  mime_type: string;
+  size: number;
+  drive_modified: string;
+  local_path: string;
+  action: "new" | "update" | "delete";
+}
+
+export interface DriveBrowseResult {
+  folder_id: string;
+  folder_name: string;
+  parent_id: string;
+  items: { id: string; name: string; is_folder: boolean; mime_type: string }[];
 }
 
 export interface SyncComplete {

@@ -102,9 +102,12 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/sync/incremental", h.StartIncrementalSync)
 		r.Post("/sync/cancel", h.CancelSync)
 		r.Get("/sync/status", h.GetSyncStatus)
+		r.Get("/sync/diff", h.GetSyncDiff)
+		r.Post("/sync/reset", h.ResetSync)
 		r.Get("/sync/history", h.GetSyncHistory)
 
 		r.Get("/files", h.ListFiles)
+		r.Post("/files/delete", h.DeleteFiles)
 		r.Get("/files/{fileID}", h.GetFile)
 		r.Get("/files/{fileID}/revisions", h.ListRevisions)
 		r.Post("/files/{fileID}/revisions/{revID}/download", h.DownloadRevision)
@@ -118,5 +121,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/distribution/jobs", h.ListDistJobs)
 
 		r.Get("/browse", h.BrowseDirectory)
+		r.Post("/mkdir", h.MakeDirectory)
+		r.Get("/drive/browse", h.BrowseDrive)
 	})
 }

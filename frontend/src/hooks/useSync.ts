@@ -11,6 +11,7 @@ const emptyProgress: SyncProgress = {
   bytes_downloaded: 0,
   current_file: "",
   current_file_progress: 0,
+  active_downloads: [],
   is_running: false,
   errors: [],
 };
@@ -51,3 +52,5 @@ export function useSync() {
 
   return { progress, logs, startFull, startIncremental, cancel };
 }
+
+export type SyncState = ReturnType<typeof useSync>;

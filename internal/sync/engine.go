@@ -47,6 +47,13 @@ func NewSyncEngine(cfg *config.Config, drv *drive.DriveClient, st *store.DB, hub
 	}
 }
 
+// SetDriveClient replaces the Drive client (e.g. after config change).
+func (e *SyncEngine) SetDriveClient(drv *drive.DriveClient) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.drive = drv
+}
+
 // IsRunning returns whether a sync is currently in progress.
 func (e *SyncEngine) IsRunning() bool {
 	e.mu.Lock()
@@ -97,7 +104,7 @@ func (e *SyncEngine) StartFull(ctx context.Context) error {
 	}
 
 	// List all files from Drive
-	log.Printf("[sync] listing files from folder %s", e.cfg.SyncFolderID)
+	log.Printf("[sync] full: listing files from folder %s", e.cfg.SyncFolderID)
 	files, err := e.drive.ListAllRecursive(ctx, e.cfg.SyncFolderID)
 	if err != nil {
 		e.finishRun(runID, "failed", 0, 0, 0, "")
@@ -138,6 +145,8 @@ func (e *SyncEngine) StartFull(ctx context.Context) error {
 
 	// Record change token for future incremental syncs
 	changeToken, _ := e.drive.GetStartPageToken(ctx)
+	log.Printf("[sync] full: folders=%d files=%d synced=%d skipped=%d failed=%d changeToken=%s",
+		len(folders), len(regularFiles), synced, len(regularFiles)-synced-failed, failed, changeToken)
 
 	status := "completed"
 	if ctx.Err() != nil {
@@ -158,8 +167,7 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 		return fmt.Errorf("get change token: %w", err)
 	}
 	if token == "" {
-		log.Println("[sync] no change token found, falling back to full sync")
-		return e.StartFull(ctx)
+		return fmt.Errorf("no change token found, run full sync first")
 	}
 
 	if err := e.acquireLock(); err != nil {
@@ -182,11 +190,13 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 	}
 
 	// Fetch changes since last sync
+	log.Printf("[sync] incremental: using change token %s", token)
 	changes, newToken, err := e.drive.GetChanges(ctx, token)
 	if err != nil {
 		e.finishRun(runID, "failed", 0, 0, 0, "")
 		return fmt.Errorf("get changes: %w", err)
 	}
+	log.Printf("[sync] incremental: %d changes found, newToken=%s", len(changes), newToken)
 
 	// Separate changed files and removed files
 	var changedFiles []*driveapi.File
@@ -194,8 +204,10 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 	for _, c := range changes {
 		if c.Removed || c.File == nil || c.File.Trashed {
 			removedIDs = append(removedIDs, c.FileId)
+			log.Printf("[sync] incremental: removed/trashed fileId=%s", c.FileId)
 		} else {
 			changedFiles = append(changedFiles, c.File)
+			log.Printf("[sync] incremental: changed file=%s id=%s mime=%s", c.File.Name, c.File.Id, c.File.MimeType)
 		}
 	}
 
@@ -520,6 +532,58 @@ func (e *SyncEngine) finishRun(id int64, status string, synced, failed int, byte
 	if err := e.store.FinishRun(id, status, synced, failed, bytes, token); err != nil {
 		log.Printf("[sync] failed to finish run: %v", err)
 	}
+}
+
+// DiffEntry represents a file that would be synced in a dry run.
+type DiffEntry struct {
+	FileID        string `json:"file_id"`
+	Name          string `json:"name"`
+	MimeType      string `json:"mime_type"`
+	Size          int64  `json:"size"`
+	DriveModified string `json:"drive_modified"`
+	LocalPath     string `json:"local_path"`
+	Action        string `json:"action"` // "new" | "update" | "delete"
+}
+
+// DryRun lists files that would be synced without downloading.
+func (e *SyncEngine) DryRun(ctx context.Context) ([]DiffEntry, error) {
+	if e.drive == nil {
+		return nil, fmt.Errorf("Drive client not initialized")
+	}
+
+	files, err := e.drive.ListAllRecursive(ctx, e.cfg.SyncFolderID)
+	if err != nil {
+		return nil, fmt.Errorf("list files: %w", err)
+	}
+
+	var entries []DiffEntry
+	for _, f := range files {
+		if f.MimeType == "application/vnd.google-apps.folder" {
+			continue
+		}
+
+		local, _ := e.store.GetFile(f.Id)
+		if !NeedsSync(f, local) {
+			continue
+		}
+
+		action := "update"
+		if local == nil {
+			action = "new"
+		}
+
+		entries = append(entries, DiffEntry{
+			FileID:        f.Id,
+			Name:          f.Name,
+			MimeType:      f.MimeType,
+			Size:          f.Size,
+			DriveModified: f.ModifiedTime,
+			LocalPath:     e.localPath(f),
+			Action:        action,
+		})
+	}
+
+	return entries, nil
 }
 
 // isFatalError returns true for errors that should stop the entire sync.

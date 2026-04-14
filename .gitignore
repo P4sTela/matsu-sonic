@@ -4,6 +4,7 @@ gdrive-sync-linux
 
 # App data
 .gdrive-sync/
+[dD]ownloads/
 
 # OS
 .DS_Store

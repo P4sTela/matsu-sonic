@@ -31,6 +31,10 @@ export const startIncrementalSync = () =>
   request<{ status: string; mode: string }>("/sync/incremental", { method: "POST" });
 export const cancelSync = () =>
   request<{ status: string }>("/sync/cancel", { method: "POST" });
+export const resetSync = () =>
+  request<{ status: string }>("/sync/reset", { method: "POST" });
+export const getSyncDiff = () =>
+  request<import("./types").DiffEntry[]>("/sync/diff");
 export const getSyncStatus = () =>
   request<{ is_running: boolean; progress: import("./types").SyncProgress }>("/sync/status");
 export const getSyncHistory = (limit = 20) =>
@@ -39,6 +43,11 @@ export const getSyncHistory = (limit = 20) =>
 // Files
 export const listFiles = (search = "") =>
   request<import("./types").SyncedFile[]>(`/files${search ? `?search=${encodeURIComponent(search)}` : ""}`);
+export const deleteFiles = (fileIds: string[]) =>
+  request<{ deleted: number }>("/files/delete", {
+    method: "POST",
+    body: JSON.stringify({ file_ids: fileIds }),
+  });
 export const getFile = (id: string) =>
   request<import("./types").SyncedFile>(`/files/${id}`);
 
@@ -76,3 +85,17 @@ export const listDistJobs = (limit = 50) =>
 // Browse
 export const browseDirectory = (path?: string) =>
   request<import("./types").BrowseResult>(`/browse${path ? `?path=${encodeURIComponent(path)}` : ""}`);
+export const makeDirectory = (path: string) =>
+  request<{ status: string; path: string }>("/mkdir", {
+    method: "POST",
+    body: JSON.stringify({ path }),
+  });
+
+// Drive Browse
+export const browseDrive = (folderId?: string, source?: "my_drive" | "shared") => {
+  const params = new URLSearchParams();
+  if (folderId) params.set("folder_id", folderId);
+  if (source) params.set("source", source);
+  const qs = params.toString();
+  return request<import("./types").DriveBrowseResult>(`/drive/browse${qs ? `?${qs}` : ""}`);
+};

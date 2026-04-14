@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/P4sTela/matsu-sonic/internal/config"
+	"github.com/P4sTela/matsu-sonic/internal/distribution"
 	"github.com/P4sTela/matsu-sonic/internal/drive"
 	"github.com/P4sTela/matsu-sonic/internal/handler"
 	"github.com/P4sTela/matsu-sonic/internal/server"
@@ -61,16 +62,20 @@ func main() {
 	// Sync engine
 	engine := msync.NewSyncEngine(&cfg, drv, db, hub)
 
+	// Distribution manager
+	distMgr := distribution.NewManager(cfg.DistTargets)
+
 	// HTTP server
 	srv := server.New(hub)
 
 	// Register API routes
 	h := &handler.Handler{
-		Config:     &cfg,
-		ConfigPath: configPath,
-		Store:      db,
-		Drive:      drv,
-		Engine:     engine,
+		Config:      &cfg,
+		ConfigPath:  configPath,
+		Store:       db,
+		Drive:       drv,
+		Engine:      engine,
+		DistManager: distMgr,
 	}
 	h.RegisterRoutes(srv.Router)
 

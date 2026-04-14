@@ -87,12 +87,34 @@ make clean    # 成果物削除
 
 ## 初期設定
 
-1. 初回起動時にカレントディレクトリの `.gdrive-sync/config.json` が自動生成される
-2. Settings ページ、または直接 JSON を編集して以下を設定:
-   - `credentials_path`: OAuth クレデンシャルファイルのパス
-   - `sync_folder_id`: 同期対象の Google Drive フォルダ ID
-   - `local_sync_dir`: ローカル同期先ディレクトリ
-3. 「Test Auth」で認証確認
+### 1. Google Cloud プロジェクトの準備
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成（または既存を使用）
+2. [Drive API を有効化](https://console.cloud.google.com/apis/library/drive.googleapis.com)
+3. OAuth クレデンシャルを作成:
+   - [認証情報ページ](https://console.cloud.google.com/apis/credentials) → 「認証情報を作成」→「OAuth クライアント ID」
+   - アプリの種類: **デスクトップ アプリ**
+   - 作成後、一覧の右端のダウンロードアイコン → 「JSON をダウンロード」
+   - ダウンロードした `client_secret_XXXXX.json` をプロジェクトディレクトリに配置
+
+### 2. アプリの設定
+
+1. サーバーを起動
+2. Settings ページで以下を設定:
+   - **Credentials Path**: ダウンロードした JSON のパス（📁 ボタンで選択可、cwd 配下なら相対パスになる）
+   - **Sync Folder ID**: 同期対象の Google Drive フォルダ ID
+   - **Local Sync Directory**: ローカル同期先ディレクトリ（📁 ボタンで選択・新規作成可）
+3. **Save** → **Test Auth**（初回のみブラウザで OAuth 承認フロー、以降は `token.json` で自動更新）
+4. 認証成功後、Sync Folder ID の 📁 ボタンで Drive のフォルダをブラウズ・選択可能
+
+### 認証方式
+
+| 方式 | 設定 | 特徴 |
+|------|------|------|
+| **OAuth** (推奨) | `auth_method: "oauth"` | 自分の Drive 全体にアクセス可能。共有されたフォルダも含む。初回のみブラウザ承認、以降自動 |
+| **Service Account** | `auth_method: "service_account"` | ヘッドレス環境向け。対象フォルダを SA のメールアドレスに共有する必要あり。フォルダ ID は URL (`drive.google.com/drive/folders/<ID>`) から手動コピー |
+
+> **Note**: OAuth のトークンは自動更新されるため、初回承認後はブラウザ操作不要で動作します。
 
 ## 機能
 

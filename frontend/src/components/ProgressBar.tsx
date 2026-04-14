@@ -12,24 +12,35 @@ export function SyncProgressBar({ progress }: { progress: SyncProgress }) {
   const total = progress.total_files || 1;
   const done = progress.completed_files + progress.skipped_files + progress.failed_files;
   const percent = Math.round((done / total) * 100);
+  const active = progress.active_downloads ?? [];
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-sm text-muted-foreground">
-        <span>
-          {done} / {progress.total_files} files
-        </span>
-        <span>{formatBytes(progress.bytes_downloaded)}</span>
+    <div className="space-y-3">
+      {/* Overall progress */}
+      <div className="space-y-1">
+        <div className="flex justify-between text-sm text-muted-foreground">
+          <span>
+            {done} / {progress.total_files} files
+          </span>
+          <span>{formatBytes(progress.bytes_downloaded)}</span>
+        </div>
+        <Progress value={percent} className="h-3" />
       </div>
-      <Progress value={percent} className="h-3" />
-      {progress.current_file && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="truncate text-muted-foreground">
-            {progress.current_file}
-          </span>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {Math.round(progress.current_file_progress * 100)}%
-          </span>
+
+      {/* Per-worker progress */}
+      {active.length > 0 && (
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(active.length, 3)}, 1fr)` }}>
+          {active.map((dl) => (
+            <div key={dl.file_id} className="rounded border p-2 space-y-1">
+              <div className="text-xs truncate text-muted-foreground" title={dl.file_name}>
+                {dl.file_name}
+              </div>
+              <Progress value={Math.round(dl.progress * 100)} className="h-1.5" />
+              <div className="text-[10px] text-muted-foreground text-right">
+                {Math.round(dl.progress * 100)}%
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

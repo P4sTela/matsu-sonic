@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	cfgpkg "github.com/P4sTela/matsu-sonic/internal/config"
+	"github.com/P4sTela/matsu-sonic/internal/store"
+	"github.com/go-chi/chi/v5"
 )
 
 // ListTargets returns all configured distribution targets.
@@ -39,6 +40,9 @@ func (h *Handler) AddTarget(w http.ResponseWriter, r *http.Request) {
 
 	h.Config.DistTargets = append(h.Config.DistTargets, target)
 	cfgpkg.Save(h.ConfigPath, *h.Config)
+	if h.DistManager != nil {
+		h.DistManager.Reload(h.Config.DistTargets)
+	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "added"})
 }
@@ -64,6 +68,9 @@ func (h *Handler) RemoveTarget(w http.ResponseWriter, r *http.Request) {
 
 	h.Config.DistTargets = filtered
 	cfgpkg.Save(h.ConfigPath, *h.Config)
+	if h.DistManager != nil {
+		h.DistManager.Reload(h.Config.DistTargets)
+	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
 }
@@ -85,7 +92,22 @@ func (h *Handler) TestTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: actual target test via distribution package
+	if h.DistManager == nil {
+		writeError(w, http.StatusInternalServerError, "distribution manager not initialized")
+		return
+	}
+
+	t, err := h.DistManager.Get(name)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if err := t.TestConnection(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -101,8 +123,56 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: actual distribution via distribution package
-	writeJSON(w, http.StatusOK, map[string]string{"status": "started"})
+	if h.DistManager == nil {
+		writeError(w, http.StatusInternalServerError, "distribution manager not initialized")
+		return
+	}
+
+	type result struct {
+		FileID string `json:"file_id"`
+		Status string `json:"status"`
+		Path   string `json:"path,omitempty"`
+		Error  string `json:"error,omitempty"`
+	}
+	var results []result
+
+	for _, fileID := range req.FileIDs {
+		f, err := h.Store.GetFile(fileID)
+		if err != nil {
+			results = append(results, result{FileID: fileID, Status: "failed", Error: "file not found"})
+			continue
+		}
+
+		destRelative := f.Name
+		if req.DestDir != "" {
+			destRelative = req.DestDir + "/" + f.Name
+		}
+
+		destPath, err := h.DistManager.Distribute(r.Context(), req.TargetName, f.LocalPath, destRelative)
+		if err != nil {
+			results = append(results, result{FileID: fileID, Status: "failed", Error: err.Error()})
+			h.Store.InsertDistJob(store.DistJob{
+				FileID:       fileID,
+				SourcePath:   f.LocalPath,
+				TargetType:   req.TargetName,
+				TargetPath:   destRelative,
+				Status:       "failed",
+				ErrorMessage: err.Error(),
+			})
+			continue
+		}
+
+		results = append(results, result{FileID: fileID, Status: "completed", Path: destPath})
+		h.Store.InsertDistJob(store.DistJob{
+			FileID:     fileID,
+			SourcePath: f.LocalPath,
+			TargetType: req.TargetName,
+			TargetPath: destPath,
+			Status:     "completed",
+		})
+	}
+
+	writeJSON(w, http.StatusOK, results)
 }
 
 // ListDistJobs returns recent distribution jobs.

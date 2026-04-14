@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Send, Trash2, Plus } from "lucide-react";
+import { Send, Trash2, Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import * as api from "@/api/client";
-import type { DistTarget, DistJob } from "@/api/types";
+import type { DistTarget, DistJob, SyncedFile } from "@/api/types";
 
 export function DistributePage() {
   const [targets, setTargets] = useState<DistTarget[]>([]);
@@ -21,9 +21,16 @@ export function DistributePage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTarget, setNewTarget] = useState<Partial<DistTarget>>({ type: "local" });
 
+  // File selection
+  const [files, setFiles] = useState<SyncedFile[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedTarget, setSelectedTarget] = useState("");
+  const [distributing, setDistributing] = useState(false);
+
   const load = () => {
-    api.listTargets().then(setTargets).catch(() => {});
-    api.listDistJobs().then(setJobs).catch(() => {});
+    api.listTargets().then((t) => setTargets(t ?? [])).catch(() => {});
+    api.listDistJobs().then((j) => setJobs(j ?? [])).catch(() => {});
+    api.listFiles().then((f) => setFiles((f ?? []).filter((x) => !x.is_folder))).catch(() => {});
   };
 
   useEffect(load, []);
@@ -45,8 +52,32 @@ export function DistributePage() {
     load();
   };
 
+  const toggleFile = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleDistribute = async () => {
+    if (selectedIds.size === 0 || !selectedTarget) return;
+    setDistributing(true);
+    try {
+      await api.distribute([...selectedIds], selectedTarget);
+      setSelectedIds(new Set());
+      load();
+    } catch {
+      // TODO: show error
+    } finally {
+      setDistributing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Targets */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -110,6 +141,63 @@ export function DistributePage() {
         </CardContent>
       </Card>
 
+      {/* Distribute Files */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Distribute Files</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {files.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No synced files to distribute</p>
+          ) : (
+            <>
+              <div className="max-h-48 overflow-y-auto space-y-1 rounded border p-2">
+                {files.map((f) => (
+                  <button
+                    key={f.file_id}
+                    onClick={() => toggleFile(f.file_id)}
+                    className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 hover:bg-accent ${
+                      selectedIds.has(f.file_id) ? "bg-accent" : ""
+                    }`}
+                  >
+                    <div className={`h-4 w-4 rounded border flex items-center justify-center ${
+                      selectedIds.has(f.file_id) ? "bg-primary border-primary" : "border-input"
+                    }`}>
+                      {selectedIds.has(f.file_id) && <Check className="h-3 w-3 text-primary-foreground" />}
+                    </div>
+                    <span className="truncate">{f.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Label>Target</Label>
+                  <select
+                    value={selectedTarget}
+                    onChange={(e) => setSelectedTarget(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                  >
+                    <option value="">Select target...</option>
+                    {targets.map((t) => (
+                      <option key={t.name} value={t.name}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  onClick={handleDistribute}
+                  disabled={selectedIds.size === 0 || !selectedTarget || distributing}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Distribute {selectedIds.size > 0 && `(${selectedIds.size})`}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Jobs */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Jobs</CardTitle>
