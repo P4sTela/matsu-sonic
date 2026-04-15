@@ -37,7 +37,12 @@ export function DistributePage() {
   useEffect(load, []);
 
   const handleAdd = async () => {
-    if (!newTarget.name || !newTarget.path) return;
+    if (!newTarget.name) return;
+    if (newTarget.type === "smb") {
+      if (!newTarget.server || !newTarget.share) return;
+    } else {
+      if (!newTarget.path) return;
+    }
     try {
       await api.addTarget(newTarget as DistTarget);
       setDialogOpen(false);
@@ -102,13 +107,72 @@ export function DistributePage() {
                     />
                   </div>
                   <div>
-                    <Label>Path</Label>
-                    <Input
-                      value={newTarget.path || ""}
-                      onChange={(e) => setNewTarget({ ...newTarget, path: e.target.value })}
-                      placeholder="/path/to/destination"
-                    />
+                    <Label>Type</Label>
+                    <select
+                      value={newTarget.type || "local"}
+                      onChange={(e) =>
+                        setNewTarget({ ...newTarget, type: e.target.value as "local" | "smb" })
+                      }
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                    >
+                      <option value="local">Local Path</option>
+                      <option value="smb">SMB Share</option>
+                    </select>
                   </div>
+                  {newTarget.type === "smb" ? (
+                    <>
+                      <div>
+                        <Label>Server</Label>
+                        <Input
+                          value={newTarget.server || ""}
+                          onChange={(e) => setNewTarget({ ...newTarget, server: e.target.value })}
+                          placeholder="e.g. 192.168.1.10 or PC-NAME"
+                        />
+                      </div>
+                      <div>
+                        <Label>Share</Label>
+                        <Input
+                          value={newTarget.share || ""}
+                          onChange={(e) => setNewTarget({ ...newTarget, share: e.target.value })}
+                          placeholder="e.g. shared-folder"
+                        />
+                      </div>
+                      <div>
+                        <Label>Username</Label>
+                        <Input
+                          value={newTarget.username || ""}
+                          onChange={(e) => setNewTarget({ ...newTarget, username: e.target.value })}
+                          placeholder="user"
+                        />
+                      </div>
+                      <div>
+                        <Label>Password</Label>
+                        <Input
+                          type="password"
+                          value={newTarget.password || ""}
+                          onChange={(e) => setNewTarget({ ...newTarget, password: e.target.value })}
+                          placeholder="password"
+                        />
+                      </div>
+                      <div>
+                        <Label>Domain (optional)</Label>
+                        <Input
+                          value={newTarget.domain || ""}
+                          onChange={(e) => setNewTarget({ ...newTarget, domain: e.target.value })}
+                          placeholder="WORKGROUP"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <Label>Path</Label>
+                      <Input
+                        value={newTarget.path || ""}
+                        onChange={(e) => setNewTarget({ ...newTarget, path: e.target.value })}
+                        placeholder="/path/to/destination"
+                      />
+                    </div>
+                  )}
                   <Button onClick={handleAdd} className="w-full">
                     <Send className="mr-2 h-4 w-4" />
                     Add
@@ -127,7 +191,9 @@ export function DistributePage() {
                 <div key={t.name} className="flex items-center justify-between rounded border p-3">
                   <div>
                     <span className="font-medium">{t.name}</span>
-                    <span className="ml-2 text-sm text-muted-foreground">{t.path}</span>
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      {t.type === "smb" ? `\\\\${t.server}\\${t.share}` : t.path}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{t.type}</Badge>

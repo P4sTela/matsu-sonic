@@ -17,6 +17,8 @@ export interface DistTarget {
   server?: string;
   share?: string;
   username?: string;
+  password?: string;
+  domain?: string;
 }
 
 export interface SyncedFile {
