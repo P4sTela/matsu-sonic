@@ -110,9 +110,14 @@ export function DistributePage() {
                     <Label>Type</Label>
                     <select
                       value={newTarget.type || "local"}
-                      onChange={(e) =>
-                        setNewTarget({ ...newTarget, type: e.target.value as "local" | "smb" })
-                      }
+                      onChange={(e) => {
+                        const type = e.target.value as "local" | "smb";
+                        if (type === "local") {
+                          setNewTarget({ name: newTarget.name, type, path: "" });
+                        } else {
+                          setNewTarget({ name: newTarget.name, type });
+                        }
+                      }}
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
                     >
                       <option value="local">Local Path</option>
