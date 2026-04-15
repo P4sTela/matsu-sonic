@@ -62,20 +62,14 @@ func (t *SMBTarget) mount(ctx context.Context) (share *smb2.Share, cleanup func(
 	return share, cleanup, nil
 }
 
-// Distribute copies src to Share/destRelative, preserving directory structure.
-func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative string) (string, error) {
+// distributeOne copies a single file to the already-mounted share.
+func (t *SMBTarget) distributeOne(share *smb2.Share, src, destRelative string) (string, error) {
 	// Prevent path traversal
 	cleaned := path.Clean(destRelative)
 	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
 		return "", fmt.Errorf("invalid destination path: must not escape share root")
 	}
 	destRelative = cleaned
-
-	share, cleanup, err := t.mount(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer cleanup()
 
 	dir := path.Dir(destRelative)
 	if dir != "" && dir != "." {
@@ -105,6 +99,38 @@ func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative str
 
 	fullPath := fmt.Sprintf(`\\%s\%s\%s`, t.Server, t.Share, destRelative)
 	return fullPath, nil
+}
+
+// Distribute copies src to Share/destRelative, preserving directory structure.
+func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative string) (string, error) {
+	share, cleanup, err := t.mount(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer cleanup()
+
+	return t.distributeOne(share, src, destRelative)
+}
+
+// DistributeMany copies multiple files over a single SMB connection.
+func (t *SMBTarget) DistributeMany(ctx context.Context, files []FileCopy) []FileCopyResult {
+	results := make([]FileCopyResult, len(files))
+
+	share, cleanup, err := t.mount(ctx)
+	if err != nil {
+		for i := range results {
+			results[i].Err = err
+		}
+		return results
+	}
+	defer cleanup()
+
+	for i, f := range files {
+		destPath, err := t.distributeOne(share, f.Src, f.DestRelative)
+		results[i].DestPath = destPath
+		results[i].Err = err
+	}
+	return results
 }
 
 // TestConnection verifies the SMB share is accessible and writable.

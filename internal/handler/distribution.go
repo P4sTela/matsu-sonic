@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	cfgpkg "github.com/P4sTela/matsu-sonic/internal/config"
+	"github.com/P4sTela/matsu-sonic/internal/distribution"
 	"github.com/P4sTela/matsu-sonic/internal/store"
 	"github.com/go-chi/chi/v5"
 )
@@ -142,6 +143,14 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 		Path   string `json:"path,omitempty"`
 		Error  string `json:"error,omitempty"`
 	}
+
+	// Collect valid files for batch distribution.
+	type fileEntry struct {
+		fileID    string
+		localPath string
+	}
+	var files []distribution.FileCopy
+	var entries []fileEntry
 	var results []result
 
 	for _, fileID := range req.FileIDs {
@@ -156,28 +165,50 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 			destRelative = req.DestDir + "/" + f.Name
 		}
 
-		destPath, err := h.DistManager.Distribute(r.Context(), req.TargetName, f.LocalPath, destRelative)
-		if err != nil {
-			results = append(results, result{FileID: fileID, Status: "failed", Error: err.Error()})
-			h.Store.InsertDistJob(store.DistJob{
-				FileID:       fileID,
-				SourcePath:   f.LocalPath,
-				TargetType:   req.TargetName,
-				TargetPath:   destRelative,
-				Status:       "failed",
-				ErrorMessage: err.Error(),
-			})
-			continue
-		}
+		files = append(files, distribution.FileCopy{Src: f.LocalPath, DestRelative: destRelative})
+		entries = append(entries, fileEntry{fileID: fileID, localPath: f.LocalPath})
+	}
 
-		results = append(results, result{FileID: fileID, Status: "completed", Path: destPath})
-		h.Store.InsertDistJob(store.DistJob{
-			FileID:     fileID,
-			SourcePath: f.LocalPath,
-			TargetType: req.TargetName,
-			TargetPath: destPath,
-			Status:     "completed",
-		})
+	if len(files) > 0 {
+		batchResults, err := h.DistManager.DistributeBatch(r.Context(), req.TargetName, files)
+		if err != nil {
+			// Target-level error (e.g. target not found): fail all files.
+			for _, e := range entries {
+				results = append(results, result{FileID: e.fileID, Status: "failed", Error: err.Error()})
+				h.Store.InsertDistJob(store.DistJob{
+					FileID:       e.fileID,
+					SourcePath:   e.localPath,
+					TargetType:   req.TargetName,
+					TargetPath:   "",
+					Status:       "failed",
+					ErrorMessage: err.Error(),
+				})
+			}
+		} else {
+			for i, br := range batchResults {
+				e := entries[i]
+				if br.Err != nil {
+					results = append(results, result{FileID: e.fileID, Status: "failed", Error: br.Err.Error()})
+					h.Store.InsertDistJob(store.DistJob{
+						FileID:       e.fileID,
+						SourcePath:   e.localPath,
+						TargetType:   req.TargetName,
+						TargetPath:   files[i].DestRelative,
+						Status:       "failed",
+						ErrorMessage: br.Err.Error(),
+					})
+				} else {
+					results = append(results, result{FileID: e.fileID, Status: "completed", Path: br.DestPath})
+					h.Store.InsertDistJob(store.DistJob{
+						FileID:     e.fileID,
+						SourcePath: e.localPath,
+						TargetType: req.TargetName,
+						TargetPath: br.DestPath,
+						Status:     "completed",
+					})
+				}
+			}
+		}
 	}
 
 	writeJSON(w, http.StatusOK, results)

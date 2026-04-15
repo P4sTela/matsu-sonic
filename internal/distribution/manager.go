@@ -39,6 +39,28 @@ func (m *Manager) Distribute(ctx context.Context, targetName, src, destRelative 
 	return t.Distribute(ctx, src, destRelative)
 }
 
+// DistributeBatch distributes multiple files to the named target.
+// Uses batch operation if the target supports it, otherwise falls back to per-file.
+func (m *Manager) DistributeBatch(ctx context.Context, targetName string, files []FileCopy) ([]FileCopyResult, error) {
+	t, err := m.Get(targetName)
+	if err != nil {
+		return nil, err
+	}
+
+	if bt, ok := t.(BatchDistributor); ok {
+		return bt.DistributeMany(ctx, files), nil
+	}
+
+	// Fallback: distribute one by one
+	results := make([]FileCopyResult, len(files))
+	for i, f := range files {
+		destPath, err := t.Distribute(ctx, f.Src, f.DestRelative)
+		results[i].DestPath = destPath
+		results[i].Err = err
+	}
+	return results, nil
+}
+
 // Reload rebuilds targets from updated config.
 func (m *Manager) Reload(configs []config.DistTargetConf) {
 	m.targets = make(map[string]Target)
