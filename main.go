@@ -101,12 +101,12 @@ func main() {
 	defer stop()
 
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
+		Addr:    fmt.Sprintf("127.0.0.1:%d", port),
 		Handler: srv.Router,
 	}
 
 	go func() {
-		log.Printf("Starting server on http://localhost:%d", port)
+		log.Printf("Starting server on http://127.0.0.1:%d", port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}

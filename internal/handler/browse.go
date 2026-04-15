@@ -13,6 +13,12 @@ func (h *Handler) BrowseDirectory(w http.ResponseWriter, r *http.Request) {
 		path, _ = os.Getwd()
 	}
 
+	path = filepath.Clean(path)
+	if !filepath.IsAbs(path) {
+		writeError(w, http.StatusBadRequest, "absolute path required")
+		return
+	}
+
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -55,6 +61,12 @@ func (h *Handler) MakeDirectory(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := decodeJSON(r, &req); err != nil || req.Path == "" {
 		writeError(w, http.StatusBadRequest, "path is required")
+		return
+	}
+
+	req.Path = filepath.Clean(req.Path)
+	if !filepath.IsAbs(req.Path) {
+		writeError(w, http.StatusBadRequest, "absolute path required")
 		return
 	}
 

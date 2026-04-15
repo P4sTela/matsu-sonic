@@ -17,7 +17,10 @@ const (
 )
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		return origin == "" || isLocalOrigin(origin)
+	},
 }
 
 // Hub manages WebSocket clients and broadcasts messages.
