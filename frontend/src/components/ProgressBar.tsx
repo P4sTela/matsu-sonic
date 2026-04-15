@@ -1,12 +1,6 @@
 import { Progress } from "@/components/ui/progress";
 import type { SyncProgress } from "@/api/types";
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
-}
+import { formatBytes } from "@/lib/utils";
 
 export function SyncProgressBar({ progress }: { progress: SyncProgress }) {
   const total = progress.total_files || 1;
