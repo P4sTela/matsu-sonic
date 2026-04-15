@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { SyncProgress, LogEntry, WSMessage } from "@/api/types";
+import type { SyncProgress, WSMessage } from "@/api/types";
 import { useWebSocket } from "./useWebSocket";
 import * as api from "@/api/client";
 
@@ -18,7 +18,6 @@ const emptyProgress: SyncProgress = {
 
 export function useSync() {
   const [progress, setProgress] = useState<SyncProgress>(emptyProgress);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const onMessage = useCallback((msg: WSMessage) => {
     switch (msg.type) {
@@ -27,9 +26,6 @@ export function useSync() {
         break;
       case "sync_complete":
         setProgress((prev) => ({ ...prev, is_running: false }));
-        break;
-      case "log":
-        setLogs((prev) => [msg.data, ...prev].slice(0, 200));
         break;
     }
   }, []);
@@ -50,7 +46,7 @@ export function useSync() {
     await api.cancelSync();
   }, []);
 
-  return { progress, logs, startFull, startIncremental, cancel };
+  return { progress, startFull, startIncremental, cancel };
 }
 
 export type SyncState = ReturnType<typeof useSync>;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Send, Trash2, Plus, Check } from "lucide-react";
+import { Send, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FileTreePicker } from "@/components/FileTreePicker";
 import * as api from "@/api/client";
 import type { DistTarget, DistJob, SyncedFile } from "@/api/types";
 
@@ -30,7 +31,7 @@ export function DistributePage() {
   const load = () => {
     api.listTargets().then((t) => setTargets(t ?? [])).catch(() => {});
     api.listDistJobs().then((j) => setJobs(j ?? [])).catch(() => {});
-    api.listFiles().then((f) => setFiles((f ?? []).filter((x) => !x.is_folder))).catch(() => {});
+    api.listFiles().then((f) => setFiles(f ?? [])).catch(() => {});
   };
 
   useEffect(load, []);
@@ -151,23 +152,14 @@ export function DistributePage() {
             <p className="text-sm text-muted-foreground text-center py-4">No synced files to distribute</p>
           ) : (
             <>
-              <div className="max-h-48 overflow-y-auto space-y-1 rounded border p-2">
-                {files.map((f) => (
-                  <button
-                    key={f.file_id}
-                    onClick={() => toggleFile(f.file_id)}
-                    className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 hover:bg-accent ${
-                      selectedIds.has(f.file_id) ? "bg-accent" : ""
-                    }`}
-                  >
-                    <div className={`h-4 w-4 rounded border flex items-center justify-center ${
-                      selectedIds.has(f.file_id) ? "bg-primary border-primary" : "border-input"
-                    }`}>
-                      {selectedIds.has(f.file_id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                    </div>
-                    <span className="truncate">{f.name}</span>
-                  </button>
-                ))}
+              <div className="rounded border p-2">
+                <FileTreePicker
+                  files={files}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleFile}
+                  showDetails={false}
+                  maxHeightClass="max-h-48"
+                />
               </div>
 
               <div className="flex items-end gap-2">

@@ -123,14 +123,7 @@ export interface SyncComplete {
   duration_ms: number;
 }
 
-export interface LogEntry {
-  level: "info" | "warn" | "error";
-  msg: string;
-  ts: string;
-}
-
 export type WSMessage =
   | { type: "sync_progress"; data: SyncProgress }
   | { type: "sync_complete"; data: SyncComplete }
-  | { type: "log"; data: LogEntry }
   | { type: "pong" };

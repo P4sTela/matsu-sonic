@@ -5,14 +5,12 @@ import {
   History,
   Send,
   Settings,
-  ScrollText,
 } from "lucide-react";
 import { SyncPage } from "@/pages/SyncPage";
 import { FilesPage } from "@/pages/FilesPage";
 import { RevisionsPage } from "@/pages/RevisionsPage";
 import { DistributePage } from "@/pages/DistributePage";
 import { SettingsPage } from "@/pages/SettingsPage";
-import { LogPage } from "@/pages/LogPage";
 import { SyncProvider } from "@/hooks/SyncProvider";
 
 const navItems = [
@@ -21,7 +19,6 @@ const navItems = [
   { to: "/revisions", icon: History, label: "Revisions" },
   { to: "/distribute", icon: Send, label: "Distribute" },
   { to: "/settings", icon: Settings, label: "Settings" },
-  { to: "/logs", icon: ScrollText, label: "Logs" },
 ];
 
 function App() {
@@ -62,7 +59,6 @@ function App() {
             <Route path="/revisions" element={<RevisionsPage />} />
             <Route path="/distribute" element={<DistributePage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/logs" element={<LogPage />} />
           </Routes>
         </main>
       </div>
