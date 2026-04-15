@@ -13,5 +13,8 @@ token.json
 # direnv
 .direnv/
 
+# Superpowers plans
+docs/superpowers/
+
 # OS
 .DS_Store
