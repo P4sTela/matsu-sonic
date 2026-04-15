@@ -1,4 +1,9 @@
-.PHONY: dev build clean test
+.PHONY: dev build clean test types
+
+# Generate TypeScript types from Go structs
+types:
+	GOBIN=$$(pwd)/.tools go install github.com/gzuidhof/tygo@latest
+	.tools/tygo generate
 
 # Development: frontend HMR + Go server
 dev:
@@ -6,7 +11,7 @@ dev:
 	go run . -port 8765
 
 # Production build: frontend → embed → Go binary
-build:
+build: types
 	cd frontend && npm ci && npm run build
 	CGO_ENABLED=1 go build -o gdrive-sync -ldflags="-s -w" .
 
