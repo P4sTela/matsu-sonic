@@ -21,17 +21,26 @@ import (
 	msync "github.com/P4sTela/matsu-sonic/internal/sync"
 )
 
+var version = "dev"
+
 func main() {
 	var (
-		port       int
-		configPath string
+		port        int
+		configPath  string
+		showVersion bool
 	)
 
 	defaultConfig := filepath.Join(".gdrive-sync", "config.json")
 
 	flag.IntVar(&port, "port", 8765, "server port")
 	flag.StringVar(&configPath, "config", defaultConfig, "config file path")
+	flag.BoolVar(&showVersion, "version", false, "show version and exit")
 	flag.Parse()
+
+	if showVersion {
+		fmt.Println("gdrive-sync", version)
+		return
+	}
 
 	// Load config
 	cfg, err := config.Load(configPath)

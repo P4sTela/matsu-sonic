@@ -21,6 +21,7 @@
             nodejs_20
             sqlite
             gcc
+            pkgsCross.mingwW64.stdenv.cc
           ];
 
           shellHook = ''

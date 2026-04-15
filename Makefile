@@ -15,10 +15,15 @@ build-linux:
 	cd frontend && npm ci && npm run build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o gdrive-sync-linux -ldflags="-s -w" .
 
+# Cross compile for Windows
+build-windows:
+	cd frontend && npm ci && npm run build
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o gdrive-sync.exe -ldflags="-s -w" .
+
 # Run all tests
 test:
 	go test ./...
 
 clean:
-	rm -f gdrive-sync gdrive-sync-linux
+	rm -f gdrive-sync gdrive-sync-linux gdrive-sync.exe
 	rm -rf frontend/dist
