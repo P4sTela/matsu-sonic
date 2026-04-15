@@ -33,9 +33,7 @@ func (h *Handler) DownloadRevision(w http.ResponseWriter, r *http.Request) {
 	fileID := chi.URLParam(r, "fileID")
 	revID := chi.URLParam(r, "revID")
 
-	var req struct {
-		DestDir string `json:"dest_dir"`
-	}
+	var req RevisionDownloadRequest
 	decodeJSON(r, &req)
 
 	// Determine destination path
@@ -80,9 +78,9 @@ func (h *Handler) DownloadRevision(w http.ResponseWriter, r *http.Request) {
 		Size:       size,
 	})
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"path": destPath,
-		"size": size,
+	writeJSON(w, http.StatusOK, RevisionDownloadResponse{
+		Path: destPath,
+		Size: size,
 	})
 }
 

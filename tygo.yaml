@@ -1,0 +1,21 @@
+packages:
+  - path: "github.com/P4sTela/matsu-sonic/internal/config"
+    output_path: "frontend/src/api/generated/config.ts"
+  - path: "github.com/P4sTela/matsu-sonic/internal/store"
+    output_path: "frontend/src/api/generated/store.ts"
+  - path: "github.com/P4sTela/matsu-sonic/internal/sync"
+    output_path: "frontend/src/api/generated/sync.ts"
+    exclude_files:
+      - "engine.go"
+      - "differ.go"
+      - "progress_test.go"
+      - "engine_test.go"
+      - "differ_test.go"
+  - path: "github.com/P4sTela/matsu-sonic/internal/handler"
+    output_path: "frontend/src/api/generated/handler.ts"
+    include_files:
+      - "types.go"
+    type_mappings:
+      "sync.ProgressSnapshot": "ProgressSnapshot"
+    frontmatter: |
+      import type { ProgressSnapshot } from "./sync";

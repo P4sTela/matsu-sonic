@@ -53,7 +53,7 @@ func (h *Handler) AddTarget(w http.ResponseWriter, r *http.Request) {
 		h.DistManager.Reload(h.Config.DistTargets)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "added"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "added"})
 }
 
 // RemoveTarget removes a distribution target by name.
@@ -81,7 +81,7 @@ func (h *Handler) RemoveTarget(w http.ResponseWriter, r *http.Request) {
 		h.DistManager.Reload(h.Config.DistTargets)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "removed"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "removed"})
 }
 
 // TestTarget tests connectivity to a distribution target.
@@ -117,16 +117,12 @@ func (h *Handler) TestTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "ok"})
 }
 
 // Distribute distributes files to a target.
 func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		FileIDs    []string `json:"file_ids"`
-		TargetName string   `json:"target_name"`
-		DestDir    string   `json:"dest_dir"`
-	}
+	var req DistributeRequest
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
@@ -137,13 +133,6 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type result struct {
-		FileID string `json:"file_id"`
-		Status string `json:"status"`
-		Path   string `json:"path,omitempty"`
-		Error  string `json:"error,omitempty"`
-	}
-
 	// Collect valid files for batch distribution.
 	type fileEntry struct {
 		fileID    string
@@ -151,12 +140,12 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 	}
 	var files []distribution.FileCopy
 	var entries []fileEntry
-	var results []result
+	var results []DistributeResult
 
 	for _, fileID := range req.FileIDs {
 		f, err := h.Store.GetFile(fileID)
 		if err != nil {
-			results = append(results, result{FileID: fileID, Status: "failed", Error: "file not found"})
+			results = append(results, DistributeResult{FileID: fileID, Status: "failed", Error: "file not found"})
 			continue
 		}
 
@@ -174,7 +163,7 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			// Target-level error (e.g. target not found): fail all files.
 			for _, e := range entries {
-				results = append(results, result{FileID: e.fileID, Status: "failed", Error: err.Error()})
+				results = append(results, DistributeResult{FileID: e.fileID, Status: "failed", Error: err.Error()})
 				h.Store.InsertDistJob(store.DistJob{
 					FileID:       e.fileID,
 					SourcePath:   e.localPath,
@@ -188,7 +177,7 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 			for i, br := range batchResults {
 				e := entries[i]
 				if br.Err != nil {
-					results = append(results, result{FileID: e.fileID, Status: "failed", Error: br.Err.Error()})
+					results = append(results, DistributeResult{FileID: e.fileID, Status: "failed", Error: br.Err.Error()})
 					h.Store.InsertDistJob(store.DistJob{
 						FileID:       e.fileID,
 						SourcePath:   e.localPath,
@@ -198,7 +187,7 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 						ErrorMessage: br.Err.Error(),
 					})
 				} else {
-					results = append(results, result{FileID: e.fileID, Status: "completed", Path: br.DestPath})
+					results = append(results, DistributeResult{FileID: e.fileID, Status: "completed", Path: br.DestPath})
 					h.Store.InsertDistJob(store.DistJob{
 						FileID:     e.fileID,
 						SourcePath: e.localPath,

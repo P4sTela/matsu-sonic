@@ -18,11 +18,11 @@ func (h *Handler) TestAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"status": "ok",
-		"user": map[string]string{
-			"displayName":  about.User.DisplayName,
-			"emailAddress": about.User.EmailAddress,
+	writeJSON(w, http.StatusOK, AuthTestResponse{
+		Status: "ok",
+		User: AuthUser{
+			DisplayName:  about.User.DisplayName,
+			EmailAddress: about.User.EmailAddress,
 		},
 	})
 }
