@@ -374,7 +374,7 @@ func (e *SyncEngine) syncOneFile(ctx context.Context, file *driveapi.File, progr
 	if len(file.Parents) > 0 {
 		parentID = file.Parents[0]
 	}
-	_ = e.store.UpsertFile(store.SyncedFile{
+	if err := e.store.UpsertFile(store.SyncedFile{
 		FileID:        file.Id,
 		Name:          file.Name,
 		MimeType:      file.MimeType,
@@ -384,7 +384,9 @@ func (e *SyncEngine) syncOneFile(ctx context.Context, file *driveapi.File, progr
 		LocalPath:     destPath,
 		LastSynced:    time.Now().UTC().Format(time.RFC3339),
 		ParentID:      parentID,
-	})
+	}); err != nil {
+		log.Printf("[sync] failed to upsert file: %v", err)
+	}
 
 	progressChan <- ProgressEvent{
 		Type:            "file_done",
@@ -462,7 +464,7 @@ func (e *SyncEngine) createFolders(ctx context.Context, folders []*driveapi.File
 		if len(f.Parents) > 0 {
 			parentID = f.Parents[0]
 		}
-		_ = e.store.UpsertFile(store.SyncedFile{
+		if err := e.store.UpsertFile(store.SyncedFile{
 			FileID:        f.Id,
 			Name:          f.Name,
 			MimeType:      f.MimeType,
@@ -471,7 +473,9 @@ func (e *SyncEngine) createFolders(ctx context.Context, folders []*driveapi.File
 			LastSynced:    time.Now().UTC().Format(time.RFC3339),
 			ParentID:      parentID,
 			IsFolder:      true,
-		})
+		}); err != nil {
+			log.Printf("[sync] failed to upsert file: %v", err)
+		}
 	}
 	return nil
 }
@@ -516,7 +520,9 @@ func (e *SyncEngine) handleRemoval(fileID string) {
 		_ = os.Rename(f.LocalPath, trashPath)
 	}
 
-	_ = e.store.DeleteFile(fileID)
+	if err := e.store.DeleteFile(fileID); err != nil {
+		log.Printf("[sync] failed to delete file %s: %v", fileID, err)
+	}
 }
 
 func (e *SyncEngine) acquireLock() error {

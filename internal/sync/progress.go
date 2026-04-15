@@ -74,7 +74,6 @@ func (t *ProgressTracker) Apply(e ProgressEvent) {
 	case "file_progress":
 		t.currentFile = e.FileName
 		t.currentProgress = e.FileProgress
-		t.bytesDownloaded += e.BytesDownloaded
 		t.activeDownloads[e.FileID] = ActiveDownload{
 			FileID: e.FileID, FileName: e.FileName, Progress: e.FileProgress,
 		}

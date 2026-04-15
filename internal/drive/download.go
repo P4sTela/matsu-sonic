@@ -54,6 +54,11 @@ func (d *DriveClient) writeToFile(destPath string, body io.Reader, totalSize int
 	if chunkSize <= 0 {
 		chunkSize = 10 * 1024 * 1024
 	}
+	// Cap buffer at 32MB to prevent excessive memory allocation
+	const maxBufSize = 32 * 1024 * 1024
+	if chunkSize > maxBufSize {
+		chunkSize = maxBufSize
+	}
 
 	buf := make([]byte, chunkSize)
 	var written int64

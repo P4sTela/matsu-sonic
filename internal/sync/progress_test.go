@@ -13,13 +13,13 @@ func TestProgressTracker_Apply(t *testing.T) {
 		t.Errorf("CurrentFile = %q, want %q", snap.CurrentFile, "a.pdf")
 	}
 
-	tracker.Apply(ProgressEvent{Type: "file_progress", FileName: "a.pdf", FileProgress: 0.5, BytesDownloaded: 500})
+	tracker.Apply(ProgressEvent{Type: "file_progress", FileName: "a.pdf", FileProgress: 0.5})
 	snap = tracker.Snapshot()
 	if snap.CurrentFileProgress != 0.5 {
 		t.Errorf("CurrentFileProgress = %f, want 0.5", snap.CurrentFileProgress)
 	}
-	if snap.BytesDownloaded != 500 {
-		t.Errorf("BytesDownloaded = %d, want 500", snap.BytesDownloaded)
+	if snap.BytesDownloaded != 0 {
+		t.Errorf("BytesDownloaded = %d, want 0", snap.BytesDownloaded)
 	}
 
 	tracker.Apply(ProgressEvent{Type: "file_done", FileName: "a.pdf", BytesDownloaded: 500})
@@ -27,8 +27,8 @@ func TestProgressTracker_Apply(t *testing.T) {
 	if snap.CompletedFiles != 1 {
 		t.Errorf("CompletedFiles = %d, want 1", snap.CompletedFiles)
 	}
-	if snap.BytesDownloaded != 1000 {
-		t.Errorf("BytesDownloaded = %d, want 1000", snap.BytesDownloaded)
+	if snap.BytesDownloaded != 500 {
+		t.Errorf("BytesDownloaded = %d, want 500", snap.BytesDownloaded)
 	}
 }
 
