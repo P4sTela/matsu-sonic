@@ -15,10 +15,7 @@ func (h *Handler) StartFullSync(w http.ResponseWriter, r *http.Request) {
 
 	go h.Engine.StartFull(context.Background())
 
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "started",
-		"mode":   "full",
-	})
+	writeJSON(w, http.StatusOK, SyncStartResponse{Status: "started", Mode: "full"})
 }
 
 // StartIncrementalSync starts an incremental sync in the background.
@@ -41,23 +38,20 @@ func (h *Handler) StartIncrementalSync(w http.ResponseWriter, r *http.Request) {
 
 	go h.Engine.StartIncremental(context.Background())
 
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "started",
-		"mode":   "incremental",
-	})
+	writeJSON(w, http.StatusOK, SyncStartResponse{Status: "started", Mode: "incremental"})
 }
 
 // CancelSync cancels the running sync.
 func (h *Handler) CancelSync(w http.ResponseWriter, r *http.Request) {
 	h.Engine.Cancel()
-	writeJSON(w, http.StatusOK, map[string]string{"status": "cancel_requested"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "cancel_requested"})
 }
 
 // GetSyncStatus returns current sync status and progress.
 func (h *Handler) GetSyncStatus(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"is_running": h.Engine.IsRunning(),
-		"progress":   h.Engine.Status(),
+	writeJSON(w, http.StatusOK, SyncStatusResponse{
+		IsRunning: h.Engine.IsRunning(),
+		Progress:  h.Engine.Status(),
 	})
 }
 
@@ -73,7 +67,7 @@ func (h *Handler) ResetSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "reset"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "reset"})
 }
 
 // GetSyncDiff returns a dry-run diff of files that would be synced.

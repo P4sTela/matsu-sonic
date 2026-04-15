@@ -21,14 +21,7 @@ func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
 	folderID := r.URL.Query().Get("folder_id")
 	source := r.URL.Query().Get("source")
 
-	type item struct {
-		ID       string `json:"id"`
-		Name     string `json:"name"`
-		IsFolder bool   `json:"is_folder"`
-		MimeType string `json:"mime_type"`
-	}
-
-	var items []item
+	var items []DriveBrowseItem
 	folderName := "My Drive"
 	parentID := ""
 
@@ -41,7 +34,7 @@ func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, f := range files {
-			items = append(items, item{
+			items = append(items, DriveBrowseItem{
 				ID:       f.Id,
 				Name:     f.Name,
 				IsFolder: f.MimeType == "application/vnd.google-apps.folder",
@@ -58,7 +51,7 @@ func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, f := range files {
-			items = append(items, item{
+			items = append(items, DriveBrowseItem{
 				ID:       f.Id,
 				Name:     f.Name,
 				IsFolder: f.MimeType == "application/vnd.google-apps.folder",
@@ -76,12 +69,12 @@ func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"folder_id":   folderID,
-		"folder_name": folderName,
-		"parent_id":   parentID,
-		"source":      source,
-		"items":       items,
+	writeJSON(w, http.StatusOK, DriveBrowseResponse{
+		FolderID:   folderID,
+		FolderName: folderName,
+		ParentID:   parentID,
+		Source:     source,
+		Items:      items,
 	})
 }
 

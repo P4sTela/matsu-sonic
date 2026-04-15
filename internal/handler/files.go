@@ -50,5 +50,5 @@ func (h *Handler) DeleteFiles(w http.ResponseWriter, r *http.Request) {
 		_ = h.Store.ClearChangeTokens()
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"deleted": deleted})
+	writeJSON(w, http.StatusOK, DeleteFilesResponse{Deleted: deleted})
 }

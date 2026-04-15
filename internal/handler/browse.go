@@ -25,19 +25,13 @@ func (h *Handler) BrowseDirectory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type item struct {
-		Name  string `json:"name"`
-		Path  string `json:"path"`
-		IsDir bool   `json:"is_dir"`
-	}
-
-	var items []item
+	var items []BrowseItem
 	for _, e := range entries {
 		// Skip hidden files
 		if len(e.Name()) > 0 && e.Name()[0] == '.' {
 			continue
 		}
-		items = append(items, item{
+		items = append(items, BrowseItem{
 			Name:  e.Name(),
 			Path:  filepath.Join(path, e.Name()),
 			IsDir: e.IsDir(),
@@ -46,19 +40,17 @@ func (h *Handler) BrowseDirectory(w http.ResponseWriter, r *http.Request) {
 
 	cwd, _ := os.Getwd()
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"current": path,
-		"parent":  filepath.Dir(path),
-		"cwd":     cwd,
-		"items":   items,
+	writeJSON(w, http.StatusOK, BrowseResponse{
+		Current: path,
+		Parent:  filepath.Dir(path),
+		Cwd:     cwd,
+		Items:   items,
 	})
 }
 
 // MakeDirectory creates a new directory.
 func (h *Handler) MakeDirectory(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Path string `json:"path"`
-	}
+	var req MakeDirRequest
 	if err := decodeJSON(r, &req); err != nil || req.Path == "" {
 		writeError(w, http.StatusBadRequest, "path is required")
 		return
@@ -75,5 +67,5 @@ func (h *Handler) MakeDirectory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "created", "path": req.Path})
+	writeJSON(w, http.StatusOK, MakeDirResponse{Status: "created", Path: req.Path})
 }
