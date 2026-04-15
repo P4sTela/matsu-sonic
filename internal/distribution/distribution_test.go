@@ -127,3 +127,61 @@ func TestManager(t *testing.T) {
 		t.Error("expected error for nonexistent target")
 	}
 }
+
+func TestManager_DistributeBatch_Fallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, "src")
+	destDir := filepath.Join(tmpDir, "dest")
+	os.MkdirAll(srcDir, 0o755)
+
+	// Create source files
+	os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("aaa"), 0o644)
+	os.WriteFile(filepath.Join(srcDir, "b.txt"), []byte("bbb"), 0o644)
+
+	configs := []config.DistTargetConf{
+		{Name: "local1", Type: "local", Path: destDir},
+	}
+	mgr := NewManager(configs)
+
+	files := []FileCopy{
+		{Src: filepath.Join(srcDir, "a.txt"), DestRelative: "a.txt"},
+		{Src: filepath.Join(srcDir, "b.txt"), DestRelative: "sub/b.txt"},
+	}
+
+	results, err := mgr.DistributeBatch(context.Background(), "local1", files)
+	if err != nil {
+		t.Fatalf("DistributeBatch: %v", err)
+	}
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	for i, r := range results {
+		if r.Err != nil {
+			t.Errorf("result[%d] error: %v", i, r.Err)
+		}
+	}
+
+	// Verify files were actually copied
+	data, err := os.ReadFile(filepath.Join(destDir, "a.txt"))
+	if err != nil || string(data) != "aaa" {
+		t.Errorf("a.txt: got %q, want %q", string(data), "aaa")
+	}
+
+	data, err = os.ReadFile(filepath.Join(destDir, "sub", "b.txt"))
+	if err != nil || string(data) != "bbb" {
+		t.Errorf("sub/b.txt: got %q, want %q", string(data), "bbb")
+	}
+}
+
+func TestManager_DistributeBatch_NotFound(t *testing.T) {
+	mgr := NewManager(nil)
+
+	_, err := mgr.DistributeBatch(context.Background(), "nonexistent", []FileCopy{
+		{Src: "/tmp/x", DestRelative: "x"},
+	})
+	if err == nil {
+		t.Error("expected error for nonexistent target")
+	}
+}

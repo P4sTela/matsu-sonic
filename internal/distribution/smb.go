@@ -126,6 +126,12 @@ func (t *SMBTarget) DistributeMany(ctx context.Context, files []FileCopy) []File
 	defer cleanup()
 
 	for i, f := range files {
+		if ctx.Err() != nil {
+			for j := i; j < len(files); j++ {
+				results[j].Err = ctx.Err()
+			}
+			break
+		}
 		destPath, err := t.distributeOne(share, f.Src, f.DestRelative)
 		results[i].DestPath = destPath
 		results[i].Err = err
