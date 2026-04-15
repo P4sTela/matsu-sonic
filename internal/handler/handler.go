@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"sync"
 
 	"github.com/P4sTela/matsu-sonic/internal/config"
 	"github.com/P4sTela/matsu-sonic/internal/distribution"
@@ -20,8 +21,16 @@ type Handler struct {
 	ConfigPath  string
 	Store       *store.DB
 	Drive       *drive.DriveClient
+	driveMu     sync.RWMutex
 	Engine      *msync.SyncEngine
 	DistManager *distribution.Manager
+}
+
+// GetDrive returns the Drive client under read lock.
+func (h *Handler) GetDrive() *drive.DriveClient {
+	h.driveMu.RLock()
+	defer h.driveMu.RUnlock()
+	return h.Drive
 }
 
 // ReinitDrive attempts to create a new Drive client from current config.
@@ -32,7 +41,9 @@ func (h *Handler) ReinitDrive() {
 		log.Printf("[handler] Drive client reinit failed: %v", err)
 		return
 	}
+	h.driveMu.Lock()
 	h.Drive = drv
+	h.driveMu.Unlock()
 	h.Engine.SetDriveClient(drv)
 	log.Println("[handler] Drive client reinitialized")
 }

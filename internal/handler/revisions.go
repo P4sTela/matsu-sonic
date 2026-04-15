@@ -13,7 +13,13 @@ import (
 func (h *Handler) ListRevisions(w http.ResponseWriter, r *http.Request) {
 	fileID := chi.URLParam(r, "fileID")
 
-	revisions, err := h.Drive.ListRevisions(r.Context(), fileID)
+	drv := h.GetDrive()
+	if drv == nil {
+		writeError(w, http.StatusServiceUnavailable, "Drive client not configured — set credentials first")
+		return
+	}
+
+	revisions, err := drv.ListRevisions(r.Context(), fileID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -54,7 +60,13 @@ func (h *Handler) DownloadRevision(w http.ResponseWriter, r *http.Request) {
 
 	destPath := filepath.Join(destDir, name)
 
-	size, err := h.Drive.DownloadRevision(r.Context(), fileID, revID, destPath)
+	drv := h.GetDrive()
+	if drv == nil {
+		writeError(w, http.StatusServiceUnavailable, "Drive client not configured — set credentials first")
+		return
+	}
+
+	size, err := drv.DownloadRevision(r.Context(), fileID, revID, destPath)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

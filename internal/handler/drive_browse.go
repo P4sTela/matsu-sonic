@@ -12,8 +12,9 @@ import (
 //   - folder_id: folder to browse (default: "root")
 //   - source: "my_drive" (default) or "shared" (shared with me)
 func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
-	if h.Drive == nil || h.Drive.Service == nil {
-		writeError(w, http.StatusInternalServerError, "Drive client not initialized")
+	drv := h.GetDrive()
+	if drv == nil || drv.Service == nil {
+		writeError(w, http.StatusServiceUnavailable, "Drive client not configured — set credentials first")
 		return
 	}
 
@@ -51,7 +52,7 @@ func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
 		if folderID == "" {
 			folderID = "root"
 		}
-		files, err := h.Drive.ListFolder(r.Context(), folderID)
+		files, err := drv.ListFolder(r.Context(), folderID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -65,7 +66,7 @@ func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 		if folderID != "root" {
-			meta, err := h.Drive.GetFileMeta(r.Context(), folderID)
+			meta, err := drv.GetFileMeta(r.Context(), folderID)
 			if err == nil {
 				folderName = meta.Name
 				if len(meta.Parents) > 0 {
@@ -85,12 +86,13 @@ func (h *Handler) BrowseDrive(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listSharedItems(r *http.Request) ([]*driveapi.File, error) {
+	drv := h.GetDrive()
 	var files []*driveapi.File
 	pageToken := ""
 	query := "sharedWithMe = true and trashed = false"
 
 	for {
-		call := h.Drive.Service.Files.List().
+		call := drv.Service.Files.List().
 			Context(r.Context()).
 			Q(query).
 			Fields("nextPageToken, files(id, name, mimeType)").

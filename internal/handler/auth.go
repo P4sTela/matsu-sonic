@@ -6,12 +6,13 @@ import (
 
 // TestAuth tests the Drive API authentication.
 func (h *Handler) TestAuth(w http.ResponseWriter, r *http.Request) {
-	if h.Drive == nil || h.Drive.Service == nil {
-		writeError(w, http.StatusInternalServerError, "Drive client not initialized")
+	drv := h.GetDrive()
+	if drv == nil || drv.Service == nil {
+		writeError(w, http.StatusServiceUnavailable, "Drive client not configured — set credentials first")
 		return
 	}
 
-	about, err := h.Drive.Service.About.Get().Fields("user(displayName, emailAddress)").Context(r.Context()).Do()
+	about, err := drv.Service.About.Get().Fields("user(displayName, emailAddress)").Context(r.Context()).Do()
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err.Error())
 		return
