@@ -85,10 +85,13 @@ func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative str
 	if err != nil {
 		return "", fmt.Errorf("create dest: %w", err)
 	}
-	defer out.Close()
 
 	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
 		return "", fmt.Errorf("copy: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		return "", fmt.Errorf("close dest: %w", err)
 	}
 
 	fullPath := fmt.Sprintf(`\\%s\%s\%s`, t.Server, t.Share, destRelative)

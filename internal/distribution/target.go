@@ -2,11 +2,7 @@ package distribution
 
 import (
 	"context"
-	"errors"
 )
-
-// ErrNotImplemented is returned by unimplemented target methods.
-var ErrNotImplemented = errors.New("not implemented")
 
 // DirEntry represents a file or directory in a distribution target.
 type DirEntry struct {
