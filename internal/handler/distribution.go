@@ -15,7 +15,15 @@ func (h *Handler) ListTargets(w http.ResponseWriter, r *http.Request) {
 	if targets == nil {
 		targets = []cfgpkg.DistTargetConf{}
 	}
-	writeJSON(w, http.StatusOK, targets)
+	// Mask passwords before returning
+	masked := make([]cfgpkg.DistTargetConf, len(targets))
+	copy(masked, targets)
+	for i := range masked {
+		if masked[i].Password != "" {
+			masked[i].Password = "********"
+		}
+	}
+	writeJSON(w, http.StatusOK, masked)
 }
 
 // AddTarget adds a new distribution target.

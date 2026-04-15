@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
+	"time"
 
 	"github.com/hirochachacha/go-smb2"
 )
@@ -26,7 +28,7 @@ func (t *SMBTarget) Type() string { return "smb" }
 // Caller must call the returned cleanup function to release all resources.
 func (t *SMBTarget) mount(ctx context.Context) (share *smb2.Share, cleanup func(), err error) {
 	addr := t.Server + ":445"
-	conn, err := new(net.Dialer).DialContext(ctx, "tcp", addr)
+	conn, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("connect to %s: %w", addr, err)
 	}
@@ -62,6 +64,13 @@ func (t *SMBTarget) mount(ctx context.Context) (share *smb2.Share, cleanup func(
 
 // Distribute copies src to Share/destRelative, preserving directory structure.
 func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative string) (string, error) {
+	// Prevent path traversal
+	cleaned := path.Clean(destRelative)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", fmt.Errorf("invalid destination path: must not escape share root")
+	}
+	destRelative = cleaned
+
 	share, cleanup, err := t.mount(ctx)
 	if err != nil {
 		return "", err

@@ -42,7 +42,7 @@ func Save(path string, cfg Config) error {
 		return err
 	}
 
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 // applyDefaults fills zero-value fields with sensible defaults.
