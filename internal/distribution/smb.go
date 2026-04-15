@@ -23,8 +23,8 @@ type SMBTarget struct {
 func (t *SMBTarget) Type() string { return "smb" }
 
 // mount connects to the SMB server and mounts the share.
-// Caller must close both the returned *smb2.Share and net.Conn.
-func (t *SMBTarget) mount(ctx context.Context) (*smb2.Share, net.Conn, error) {
+// Caller must call the returned cleanup function to release all resources.
+func (t *SMBTarget) mount(ctx context.Context) (share *smb2.Share, cleanup func(), err error) {
 	addr := t.Server + ":445"
 	conn, err := new(net.Dialer).DialContext(ctx, "tcp", addr)
 	if err != nil {
@@ -39,31 +39,36 @@ func (t *SMBTarget) mount(ctx context.Context) (*smb2.Share, net.Conn, error) {
 		},
 	}
 
-	s, err := d.DialContext(ctx, conn)
+	session, err := d.DialContext(ctx, conn)
 	if err != nil {
 		conn.Close()
 		return nil, nil, fmt.Errorf("smb session: %w", err)
 	}
 
-	share, err := s.Mount(t.Share)
+	share, err = session.Mount(t.Share)
 	if err != nil {
+		session.Logoff()
 		conn.Close()
 		return nil, nil, fmt.Errorf("mount share %q: %w", t.Share, err)
 	}
 
-	return share, conn, nil
+	cleanup = func() {
+		share.Umount()
+		session.Logoff()
+		conn.Close()
+	}
+	return share, cleanup, nil
 }
 
 // Distribute copies src to Share/destRelative, preserving directory structure.
 func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative string) (string, error) {
-	share, conn, err := t.mount(ctx)
+	share, cleanup, err := t.mount(ctx)
 	if err != nil {
 		return "", err
 	}
-	defer conn.Close()
+	defer cleanup()
 
-	destPath := destRelative
-	dir := path.Dir(destPath)
+	dir := path.Dir(destRelative)
 	if dir != "" && dir != "." {
 		if err := share.MkdirAll(dir, 0o755); err != nil {
 			return "", fmt.Errorf("mkdir %q: %w", dir, err)
@@ -76,7 +81,7 @@ func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative str
 	}
 	defer in.Close()
 
-	out, err := share.Create(destPath)
+	out, err := share.Create(destRelative)
 	if err != nil {
 		return "", fmt.Errorf("create dest: %w", err)
 	}
@@ -86,17 +91,17 @@ func (t *SMBTarget) Distribute(ctx context.Context, src string, destRelative str
 		return "", fmt.Errorf("copy: %w", err)
 	}
 
-	fullPath := fmt.Sprintf(`\\%s\%s\%s`, t.Server, t.Share, destPath)
+	fullPath := fmt.Sprintf(`\\%s\%s\%s`, t.Server, t.Share, destRelative)
 	return fullPath, nil
 }
 
 // TestConnection verifies the SMB share is accessible and writable.
 func (t *SMBTarget) TestConnection(ctx context.Context) error {
-	share, conn, err := t.mount(ctx)
+	share, cleanup, err := t.mount(ctx)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer cleanup()
 
 	testFile := ".gdrive-sync-test"
 	f, err := share.Create(testFile)
@@ -111,11 +116,11 @@ func (t *SMBTarget) TestConnection(ctx context.Context) error {
 
 // ListContents lists files and directories at the given path in the share.
 func (t *SMBTarget) ListContents(ctx context.Context, dirPath string) ([]DirEntry, error) {
-	share, conn, err := t.mount(ctx)
+	share, cleanup, err := t.mount(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer cleanup()
 
 	target := dirPath
 	if target == "" {
