@@ -81,17 +81,20 @@ func TestLocalTarget_ListContents(t *testing.T) {
 	}
 }
 
-func TestSMBTarget_NotImplemented(t *testing.T) {
-	target := &SMBTarget{}
+func TestSMBTarget_ImplementsInterface(t *testing.T) {
+	target := &SMBTarget{
+		Server:   "testserver",
+		Share:    "testshare",
+		Username: "user",
+		Password: "pass",
+		Domain:   "WORKGROUP",
+	}
 
-	if _, err := target.Distribute(context.Background(), "", ""); err != ErrNotImplemented {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
-	}
-	if err := target.TestConnection(context.Background()); err != ErrNotImplemented {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
-	}
-	if _, err := target.ListContents(context.Background(), ""); err != ErrNotImplemented {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
+	// Verify it implements Target interface
+	var _ Target = target
+
+	if target.Type() != "smb" {
+		t.Errorf("type = %q, want %q", target.Type(), "smb")
 	}
 }
 
