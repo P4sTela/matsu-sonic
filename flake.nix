@@ -24,6 +24,7 @@
             pkgsCross.mingwW64.stdenv.cc
             go-task
             tygo
+            air
           ];
 
           shellHook = ''

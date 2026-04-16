@@ -64,6 +64,8 @@ interface Props {
   onToggleSelect: (id: string) => void;
   /** Show size and last synced columns (default: true) */
   showDetails?: boolean;
+  /** Show checkboxes for file selection (default: true) */
+  showCheckbox?: boolean;
   /** Max height with scroll (e.g. "max-h-64") */
   maxHeightClass?: string;
 }
@@ -73,6 +75,7 @@ export function FileTreePicker({
   selectedIds,
   onToggleSelect,
   showDetails = true,
+  showCheckbox = true,
   maxHeightClass,
 }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -118,15 +121,17 @@ export function FileTreePicker({
             onClick={() => f.is_folder ? toggleExpand(f.file_id) : onToggleSelect(f.file_id)}
           >
             {/* Checkbox (files only) */}
-            <div className="w-4 shrink-0">
-              {!f.is_folder && (
-                <div className={`h-4 w-4 rounded border flex items-center justify-center ${
-                  selectedIds.has(f.file_id) ? "bg-primary border-primary" : "border-input"
-                }`}>
-                  {selectedIds.has(f.file_id) && <Check className="h-3 w-3 text-primary-foreground" />}
-                </div>
-              )}
-            </div>
+            {showCheckbox && (
+              <div className="w-4 shrink-0">
+                {!f.is_folder && (
+                  <div className={`h-4 w-4 rounded border flex items-center justify-center ${
+                    selectedIds.has(f.file_id) ? "bg-primary border-primary" : "border-input"
+                  }`}>
+                    {selectedIds.has(f.file_id) && <Check className="h-3 w-3 text-primary-foreground" />}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Name with indent */}
             <div className="flex items-center gap-1.5 flex-1 min-w-0" style={{ paddingLeft: `${depth * 20}px` }}>

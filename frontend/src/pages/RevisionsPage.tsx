@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Download, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,22 +11,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FileTreePicker } from "@/components/FileTreePicker";
 import * as api from "@/api/client";
 import type { SyncedFile, DriveRevision } from "@/api/types";
+import { formatBytes } from "@/lib/utils";
 
 export function RevisionsPage() {
   const [files, setFiles] = useState<SyncedFile[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedFile, setSelectedFile] = useState<SyncedFile | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [revisions, setRevisions] = useState<DriveRevision[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      api.listFiles(search).then(setFiles).catch(() => {});
+      api.listFiles(search).then((f) => setFiles(f ?? [])).catch(() => {});
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  const selectedFile = useMemo(
+    () => files.find((f) => f.file_id === selectedId) ?? null,
+    [files, selectedId],
+  );
+
+  const selectedIds = useMemo(
+    () => (selectedId ? new Set([selectedId]) : new Set<string>()),
+    [selectedId],
+  );
 
   useEffect(() => {
     if (!selectedFile) return;
@@ -47,6 +59,10 @@ export function RevisionsPage() {
     }
   };
 
+  const handleToggleSelect = (id: string) => {
+    setSelectedId((prev) => (prev === id ? null : id));
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -63,21 +79,14 @@ export function RevisionsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="max-h-48 overflow-y-auto space-y-1">
-            {files
-              .filter((f) => !f.is_folder)
-              .map((f) => (
-                <button
-                  key={f.file_id}
-                  onClick={() => setSelectedFile(f)}
-                  className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${
-                    selectedFile?.file_id === f.file_id ? "bg-accent" : ""
-                  }`}
-                >
-                  {f.name}
-                </button>
-              ))}
-          </div>
+          <FileTreePicker
+            files={files}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            showDetails={false}
+            showCheckbox={false}
+            maxHeightClass="max-h-72"
+          />
         </CardContent>
       </Card>
 
@@ -111,7 +120,7 @@ export function RevisionsPage() {
                         {rev.lastModifyingUser?.displayName || "—"}
                       </TableCell>
                       <TableCell className="text-right text-sm">
-                        {rev.size ? `${(Number(rev.size) / 1024).toFixed(1)} KB` : "—"}
+                        {rev.size ? formatBytes(Number(rev.size)) : "—"}
                       </TableCell>
                       <TableCell>
                         <Button

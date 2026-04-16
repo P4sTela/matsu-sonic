@@ -132,23 +132,19 @@ make build
 ### 開発モード
 
 ```bash
-# ターミナル 1: フロントエンド (HMR, port 3000, /api と /ws を :8765 にプロキシ)
-cd frontend && npm install && npm run dev
-
-# ターミナル 2: Go バックエンド
-go run . -port 8765
+task dev   # フロントエンド (HMR) + Go サーバー (air によるホットリロード) を同時起動
 ```
 
-http://localhost:3000 を開く。
+http://localhost:3000 を開く。Go ファイルを編集すると自動でリビルド・再起動されます。
 
 ### ビルド
 
 ```bash
-make build          # フロントエンド + Go バイナリ (./gdrive-sync)
-make build-linux    # Linux amd64 向けクロスコンパイル
-make build-windows  # Windows amd64 向けクロスコンパイル (.exe)
-make test           # Go テスト実行
-make clean          # ビルド成果物の削除
+task build          # フロントエンド + Go バイナリ (./gdrive-sync)
+task build-linux    # Linux amd64 向けクロスコンパイル
+task build-windows  # Windows amd64 向けクロスコンパイル (.exe)
+task test           # Go テスト実行
+task clean          # ビルド成果物の削除
 ```
 
 ### 手動ビルド
@@ -209,6 +205,7 @@ gdrive-sync
 | [google-api-go-client](https://github.com/googleapis/google-api-go-client) | Drive API |
 | [errgroup](https://pkg.go.dev/golang.org/x/sync/errgroup) | 並列ダウンロード制御 |
 | [go-smb2](https://github.com/hirochachacha/go-smb2) | SMB/CIFS ファイル配布 |
+| [air](https://github.com/air-verse/air) | Go ホットリロード (開発時) |
 
 **フロントエンド**
 

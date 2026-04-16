@@ -15,10 +15,10 @@ tasks:
       - dev:backend
 
   dev:backend:
-    desc: Start Go server
+    desc: Start Go server with hot reload
     prefix: go
     cmds:
-      - go run . -port 8765
+      - air -- -port 8765
     internal: true
 
   dev:frontend:

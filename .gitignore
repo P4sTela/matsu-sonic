@@ -1,6 +1,7 @@
 # Build artifacts
 gdrive-sync
 gdrive-sync-linux
+tmp/
 
 # App data
 .gdrive-sync/
