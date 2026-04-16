@@ -6,8 +6,7 @@ tasks:
   types:
     desc: Generate TypeScript types from Go structs
     cmds:
-      - GOBIN={{.ROOT_DIR}}/.tools go install github.com/gzuidhof/tygo@latest
-      - .tools/tygo generate
+      - tygo generate
 
   dev:
     desc: "Development: frontend HMR + Go server"

@@ -10,9 +10,6 @@ gdrive-sync-linux
 client_secret_*.json
 token.json
 
-# Build tools
-.tools/
-
 # direnv
 .direnv/
 
