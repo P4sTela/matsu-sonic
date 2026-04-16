@@ -22,6 +22,7 @@
             sqlite
             gcc
             pkgsCross.mingwW64.stdenv.cc
+            go-task
           ];
 
           shellHook = ''
