@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Folder, File, ArrowUp, Check, FolderPlus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -76,8 +77,10 @@ export function DirBrowser({ open, onOpenChange, onSelect, title = "Select Path"
       setNewFolderName("");
       setShowNewFolder(false);
       browse(result.current);
-    } catch {
-      // TODO: show error
+    } catch (e) {
+      toast.error("Failed to create folder", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     }
   };
 

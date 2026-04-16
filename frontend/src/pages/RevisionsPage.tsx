@@ -15,6 +15,7 @@ import { FileTreePicker } from "@/components/FileTreePicker";
 import * as api from "@/api/client";
 import type { SyncedFile, DriveRevision } from "@/api/types";
 import { formatBytes } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function RevisionsPage() {
   const [files, setFiles] = useState<SyncedFile[]>([]);
@@ -54,8 +55,10 @@ export function RevisionsPage() {
     if (!selectedFile) return;
     try {
       await api.downloadRevision(selectedFile.file_id, revId);
-    } catch {
-      // TODO: show error
+    } catch (e) {
+      toast.error("Failed to download revision", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     }
   };
 

@@ -25,7 +25,7 @@ tasks:
     desc: Start frontend dev server
     prefix: vite
     cmds:
-      - cd frontend && npm run dev
+      - cd frontend && bun run dev
     internal: true
 
   build:
@@ -33,19 +33,19 @@ tasks:
     deps:
       - types
     cmds:
-      - cd frontend && npm ci && npm run build
+      - cd frontend && bun install &&bun run build
       - CGO_ENABLED=1 go build -o gdrive-sync -ldflags="-s -w" .
 
   build-linux:
     desc: Cross compile for Linux
     cmds:
-      - cd frontend && npm ci && npm run build
+      - cd frontend && bun install &&bun run build
       - GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o gdrive-sync-linux -ldflags="-s -w" .
 
   build-windows:
     desc: Cross compile for Windows
     cmds:
-      - cd frontend && npm ci && npm run build
+      - cd frontend && bun install &&bun run build
       - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o gdrive-sync.exe -ldflags="-s -w" .
 
   test:
