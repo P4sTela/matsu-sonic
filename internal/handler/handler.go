@@ -15,6 +15,11 @@ import (
 	msync "github.com/P4sTela/matsu-sonic/internal/sync"
 )
 
+// Broadcaster is the interface for sending messages to WebSocket clients.
+type Broadcaster interface {
+	Broadcast(data []byte)
+}
+
 // Handler holds shared dependencies for all endpoint handlers.
 type Handler struct {
 	Config      *config.Config
@@ -24,6 +29,7 @@ type Handler struct {
 	driveMu     sync.RWMutex
 	Engine      *msync.SyncEngine
 	DistManager *distribution.Manager
+	Hub         Broadcaster
 }
 
 // GetDrive returns the Drive client under read lock.

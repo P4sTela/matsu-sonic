@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -17,12 +18,22 @@ func (h *Handler) VerifyFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Count total files to verify (non-folder)
+	total := 0
+	for _, f := range files {
+		if !f.IsFolder {
+			total++
+		}
+	}
+
 	var resp VerifyResponse
+	checked := 0
 	for _, f := range files {
 		if f.IsFolder {
 			continue
 		}
 		resp.Total++
+		checked++
 
 		if f.MD5Checksum == "" {
 			resp.Skipped++
@@ -31,11 +42,7 @@ func (h *Handler) VerifyFiles(w http.ResponseWriter, r *http.Request) {
 				Name:   f.Name,
 				Status: "skipped",
 			})
-			continue
-		}
-
-		actual, err := fileMD5(f.LocalPath)
-		if err != nil {
+		} else if actual, err := fileMD5(f.LocalPath); err != nil {
 			resp.Missing++
 			resp.Results = append(resp.Results, VerifyResult{
 				FileID:   f.FileID,
@@ -43,10 +50,7 @@ func (h *Handler) VerifyFiles(w http.ResponseWriter, r *http.Request) {
 				Status:   "missing",
 				Expected: f.MD5Checksum,
 			})
-			continue
-		}
-
-		if actual != f.MD5Checksum {
+		} else if actual != f.MD5Checksum {
 			resp.Mismatch++
 			resp.Results = append(resp.Results, VerifyResult{
 				FileID:   f.FileID,
@@ -63,10 +67,39 @@ func (h *Handler) VerifyFiles(w http.ResponseWriter, r *http.Request) {
 				Status: "ok",
 			})
 		}
+
+		// Broadcast progress via WebSocket
+		if h.Hub != nil {
+			msg, _ := json.Marshal(map[string]any{
+				"type": "verify_progress",
+				"data": map[string]any{
+					"checked":  checked,
+					"total":    total,
+					"fileName": f.Name,
+				},
+			})
+			h.Hub.Broadcast(msg)
+		}
+	}
+
+	// Broadcast completion
+	if h.Hub != nil {
+		msg, _ := json.Marshal(map[string]any{
+			"type": "verify_complete",
+			"data": map[string]any{
+				"total":    resp.Total,
+				"ok":       resp.Ok,
+				"mismatch": resp.Mismatch,
+				"missing":  resp.Missing,
+				"skipped":  resp.Skipped,
+			},
+		})
+		h.Hub.Broadcast(msg)
 	}
 
 	writeJSON(w, http.StatusOK, resp)
 }
+
 
 // ResyncFiles clears checksums for the given file IDs so the next
 // full sync will re-download them, then starts a full sync.

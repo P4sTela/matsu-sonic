@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { FileTreePicker } from "@/components/FileTreePicker";
+import { useSyncContext } from "@/hooks/SyncProvider";
 import * as api from "@/api/client";
 import type { SyncedFile } from "@/api/types";
 
 export function FilesPage() {
+  const { verifyProgress } = useSyncContext();
   const [files, setFiles] = useState<SyncedFile[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -107,7 +109,11 @@ export function FilesPage() {
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={handleVerify} disabled={verifying}>
               <ShieldCheck className="mr-2 h-4 w-4" />
-              {verifying ? "Verifying..." : "Verify"}
+              {verifying && verifyProgress
+                ? `Verifying (${verifyProgress.checked}/${verifyProgress.total})`
+                : verifying
+                  ? "Verifying..."
+                  : "Verify"}
             </Button>
             {badFileIds.length > 0 && (
               <Button size="sm" variant="outline" onClick={handleResync} disabled={resyncing}>

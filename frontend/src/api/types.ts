@@ -70,8 +70,17 @@ export interface SyncComplete {
   duration_ms: number;
 }
 
+// Verify progress from WebSocket
+export interface VerifyProgress {
+  checked: number;
+  total: number;
+  fileName: string;
+}
+
 // WebSocket message union type
 export type WSMessage =
   | { type: "sync_progress"; data: SyncProgress }
   | { type: "sync_complete"; data: SyncComplete }
+  | { type: "verify_progress"; data: VerifyProgress }
+  | { type: "verify_complete"; data: Omit<VerifyResponse, "results"> }
   | { type: "pong" };

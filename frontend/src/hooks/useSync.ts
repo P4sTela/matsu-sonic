@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import type { SyncProgress, WSMessage } from "@/api/types";
+import type { SyncProgress, VerifyProgress, WSMessage } from "@/api/types";
 import { useWebSocket } from "./useWebSocket";
 import * as api from "@/api/client";
 
@@ -18,6 +18,7 @@ const emptyProgress: SyncProgress = {
 
 export function useSync() {
   const [progress, setProgress] = useState<SyncProgress>(emptyProgress);
+  const [verifyProgress, setVerifyProgress] = useState<VerifyProgress | null>(null);
 
   const onMessage = useCallback((msg: WSMessage) => {
     switch (msg.type) {
@@ -26,6 +27,12 @@ export function useSync() {
         break;
       case "sync_complete":
         setProgress((prev) => ({ ...prev, is_running: false }));
+        break;
+      case "verify_progress":
+        setVerifyProgress(msg.data);
+        break;
+      case "verify_complete":
+        setVerifyProgress(null);
         break;
     }
   }, []);
@@ -46,7 +53,7 @@ export function useSync() {
     await api.cancelSync();
   }, []);
 
-  return { progress, startFull, startIncremental, cancel };
+  return { progress, verifyProgress, startFull, startIncremental, cancel };
 }
 
 export type SyncState = ReturnType<typeof useSync>;
