@@ -118,6 +118,8 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		r.Get("/files", h.ListFiles)
 		r.Post("/files/delete", h.DeleteFiles)
+		r.Post("/files/verify", h.VerifyFiles)
+		r.Post("/files/resync", h.ResyncFiles)
 		r.Get("/files/{fileID}", h.GetFile)
 		r.Get("/files/{fileID}/revisions", h.ListRevisions)
 		r.Post("/files/{fileID}/revisions/{revID}/download", h.DownloadRevision)

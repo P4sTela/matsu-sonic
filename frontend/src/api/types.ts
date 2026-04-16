@@ -29,6 +29,25 @@ export type {
   DistributeRequest,
 } from "./generated";
 
+// --- Verify ---
+
+export interface VerifyResult {
+  file_id: string;
+  name: string;
+  status: "ok" | "mismatch" | "missing" | "skipped";
+  expected?: string;
+  actual?: string;
+}
+
+export interface VerifyResponse {
+  total: number;
+  ok: number;
+  mismatch: number;
+  missing: number;
+  skipped: number;
+  results: VerifyResult[];
+}
+
 // --- Frontend-only types (no Go counterpart) ---
 
 // Google Drive revision -- sourced from Google API response

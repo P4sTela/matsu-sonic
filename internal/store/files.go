@@ -73,6 +73,28 @@ func (db *DB) ListFiles(search string) ([]SyncedFile, error) {
 	return files, rows.Err()
 }
 
+// ClearFileChecksums clears the MD5 checksum for the given file IDs,
+// so the next sync will re-download them.
+func (db *DB) ClearFileChecksums(fileIDs []string) (int64, error) {
+	if len(fileIDs) == 0 {
+		return 0, nil
+	}
+	placeholders := ""
+	args := make([]any, len(fileIDs))
+	for i, id := range fileIDs {
+		if i > 0 {
+			placeholders += ", "
+		}
+		placeholders += "?"
+		args[i] = id
+	}
+	res, err := db.conn.Exec(`UPDATE synced_files SET md5_checksum = '' WHERE file_id IN (`+placeholders+`)`, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // DeleteFile removes a synced file record.
 func (db *DB) DeleteFile(fileID string) error {
 	_, err := db.conn.Exec(`DELETE FROM synced_files WHERE file_id = ?`, fileID)
