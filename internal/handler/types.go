@@ -104,6 +104,25 @@ type DistributeResult struct {
 	Error  string `json:"error,omitempty"`
 }
 
+// --- Verify ---
+
+type VerifyResult struct {
+	FileID   string `json:"file_id"`
+	Name     string `json:"name"`
+	Status   string `json:"status"` // "ok", "mismatch", "missing", "skipped"
+	Expected string `json:"expected,omitempty"`
+	Actual   string `json:"actual,omitempty"`
+}
+
+type VerifyResponse struct {
+	Total    int            `json:"total"`
+	Ok       int            `json:"ok"`
+	Mismatch int            `json:"mismatch"`
+	Missing  int            `json:"missing"`
+	Skipped  int            `json:"skipped"`
+	Results  []VerifyResult `json:"results"`
+}
+
 // --- Revisions ---
 
 type RevisionDownloadRequest struct {

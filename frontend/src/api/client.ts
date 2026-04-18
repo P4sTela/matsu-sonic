@@ -50,6 +50,13 @@ export const deleteFiles = (fileIds: string[]) =>
   });
 export const getFile = (id: string) =>
   request<import("./types").SyncedFile>(`/files/${id}`);
+export const verifyFiles = () =>
+  request<import("./types").VerifyResponse>("/files/verify", { method: "POST" });
+export const resyncFiles = (fileIds: string[]) =>
+  request<{ status: string; cleared: number }>("/files/resync", {
+    method: "POST",
+    body: JSON.stringify({ file_ids: fileIds }),
+  });
 
 // Revisions
 export const listRevisions = (fileId: string) =>

@@ -12,6 +12,7 @@ import { RevisionsPage } from "@/pages/RevisionsPage";
 import { DistributePage } from "@/pages/DistributePage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { SyncProvider } from "@/hooks/SyncProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 const navItems = [
   { to: "/", icon: RefreshCw, label: "Sync" },
@@ -62,6 +63,7 @@ function App() {
           </Routes>
         </main>
       </div>
+      <Toaster />
     </SyncProvider>
   );
 }

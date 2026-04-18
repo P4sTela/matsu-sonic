@@ -347,7 +347,7 @@ func (e *SyncEngine) syncOneFile(ctx context.Context, file *driveapi.File, progr
 	}
 
 	// Download
-	written, err := e.drive.DownloadFile(ctx, file.Id, destPath, file.MimeType, file.Size, func(pct float64) {
+	written, err := e.drive.DownloadFile(ctx, file.Id, destPath, file.MimeType, file.Size, file.Md5Checksum, func(pct float64) {
 		progressChan <- ProgressEvent{
 			Type:         "file_progress",
 			FileID:       file.Id,

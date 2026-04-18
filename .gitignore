@@ -1,6 +1,7 @@
 # Build artifacts
 gdrive-sync
 gdrive-sync-linux
+tmp/
 
 # App data
 .gdrive-sync/
@@ -9,9 +10,6 @@ gdrive-sync-linux
 # Secrets
 client_secret_*.json
 token.json
-
-# Build tools
-.tools/
 
 # direnv
 .direnv/

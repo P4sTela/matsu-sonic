@@ -15,6 +15,7 @@ import {
 import { FileTreePicker } from "@/components/FileTreePicker";
 import * as api from "@/api/client";
 import type { DistTarget, DistJob, SyncedFile } from "@/api/types";
+import { toast } from "sonner";
 
 export function DistributePage() {
   const [targets, setTargets] = useState<DistTarget[]>([]);
@@ -48,8 +49,10 @@ export function DistributePage() {
       setDialogOpen(false);
       setNewTarget({ type: "local" });
       load();
-    } catch {
-      // TODO: show error
+    } catch (e) {
+      toast.error("Failed to add target", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     }
   };
 
@@ -74,8 +77,10 @@ export function DistributePage() {
       await api.distribute([...selectedIds], selectedTarget);
       setSelectedIds(new Set());
       load();
-    } catch {
-      // TODO: show error
+    } catch (e) {
+      toast.error("Failed to distribute files", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     } finally {
       setDistributing(false);
     }

@@ -18,10 +18,13 @@
             gopls
             gotools
             go-tools
-            nodejs_20
+            bun
             sqlite
             gcc
             pkgsCross.mingwW64.stdenv.cc
+            go-task
+            tygo
+            air
           ];
 
           shellHook = ''

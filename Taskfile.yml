@@ -1,0 +1,60 @@
+version: "3"
+
+output: prefixed
+
+tasks:
+  types:
+    desc: Generate TypeScript types from Go structs
+    cmds:
+      - tygo generate
+
+  dev:
+    desc: "Development: frontend HMR + Go server"
+    deps:
+      - dev:frontend
+      - dev:backend
+
+  dev:backend:
+    desc: Start Go server with hot reload
+    prefix: go
+    cmds:
+      - air -- -port 8765
+    internal: true
+
+  dev:frontend:
+    desc: Start frontend dev server
+    prefix: vite
+    cmds:
+      - cd frontend && bun run dev
+    internal: true
+
+  build:
+    desc: "Production build: frontend → embed → Go binary"
+    deps:
+      - types
+    cmds:
+      - cd frontend && bun install &&bun run build
+      - CGO_ENABLED=1 go build -o gdrive-sync -ldflags="-s -w" .
+
+  build-linux:
+    desc: Cross compile for Linux
+    cmds:
+      - cd frontend && bun install &&bun run build
+      - GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o gdrive-sync-linux -ldflags="-s -w" .
+
+  build-windows:
+    desc: Cross compile for Windows
+    cmds:
+      - cd frontend && bun install &&bun run build
+      - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o gdrive-sync.exe -ldflags="-s -w" .
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./...
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -f gdrive-sync gdrive-sync-linux gdrive-sync.exe
+      - rm -rf frontend/dist

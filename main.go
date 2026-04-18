@@ -85,6 +85,7 @@ func main() {
 		Drive:       drv,
 		Engine:      engine,
 		DistManager: distMgr,
+		Hub:         hub,
 	}
 	h.RegisterRoutes(srv.Router)
 

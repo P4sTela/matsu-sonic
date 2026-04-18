@@ -29,6 +29,25 @@ export type {
   DistributeRequest,
 } from "./generated";
 
+// --- Verify ---
+
+export interface VerifyResult {
+  file_id: string;
+  name: string;
+  status: "ok" | "mismatch" | "missing" | "skipped";
+  expected?: string;
+  actual?: string;
+}
+
+export interface VerifyResponse {
+  total: number;
+  ok: number;
+  mismatch: number;
+  missing: number;
+  skipped: number;
+  results: VerifyResult[];
+}
+
 // --- Frontend-only types (no Go counterpart) ---
 
 // Google Drive revision -- sourced from Google API response
@@ -51,8 +70,17 @@ export interface SyncComplete {
   duration_ms: number;
 }
 
+// Verify progress from WebSocket
+export interface VerifyProgress {
+  checked: number;
+  total: number;
+  fileName: string;
+}
+
 // WebSocket message union type
 export type WSMessage =
   | { type: "sync_progress"; data: SyncProgress }
   | { type: "sync_complete"; data: SyncComplete }
+  | { type: "verify_progress"; data: VerifyProgress }
+  | { type: "verify_complete"; data: Omit<VerifyResponse, "results"> }
   | { type: "pong" };

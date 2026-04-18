@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Folder, File, ArrowUp, Check, EyeOff } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Folder, File, ArrowUp, Check, EyeOff, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import * as api from "@/api/client";
 import type { DriveBrowseResult } from "@/api/types";
 
@@ -27,6 +28,7 @@ export function DriveBrowser({ open, onOpenChange, onSelect, onIgnore, title = "
   const [error, setError] = useState<string | null>(null);
   const [path, setPath] = useState<{ id: string; name: string }[]>([]);
   const [source, setSource] = useState<Source>("my_drive");
+  const [filter, setFilter] = useState("");
 
   const browse = useCallback(async (folderId?: string, src?: Source) => {
     setLoading(true);
@@ -45,6 +47,7 @@ export function DriveBrowser({ open, onOpenChange, onSelect, onIgnore, title = "
     if (open) {
       setPath([]);
       setSource("my_drive");
+      setFilter("");
       browse(undefined, "my_drive");
     }
   }, [open, browse]);
@@ -83,11 +86,18 @@ export function DriveBrowser({ open, onOpenChange, onSelect, onIgnore, title = "
     onOpenChange(false);
   };
 
+  const filteredItems = useMemo(() => {
+    const items = result?.items ?? [];
+    if (!filter) return items;
+    const lower = filter.toLowerCase();
+    return items.filter((item) => item.name.toLowerCase().includes(lower));
+  }, [result, filter]);
+
   const rootLabel = source === "shared" ? "Shared with me" : "My Drive";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -146,15 +156,25 @@ export function DriveBrowser({ open, onOpenChange, onSelect, onIgnore, title = "
             <p className="text-sm text-destructive">{error}</p>
           )}
 
-          <ScrollArea className="h-64 rounded border">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Filter..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <ScrollArea className="h-96 rounded border">
             {loading ? (
               <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
             ) : (
               <div className="p-1">
-                {(result?.items ?? []).map((item) => (
+                {filteredItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-accent text-sm"
+                    className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-accent text-sm overflow-hidden"
                   >
                     <button
                       className="flex items-center gap-2 flex-1 text-left min-w-0"
@@ -196,8 +216,10 @@ export function DriveBrowser({ open, onOpenChange, onSelect, onIgnore, title = "
                     </div>
                   </div>
                 ))}
-                {result?.items?.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Empty folder</p>
+                {filteredItems.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    {filter ? "No matches" : "Empty folder"}
+                  </p>
                 )}
               </div>
             )}
