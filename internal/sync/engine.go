@@ -124,6 +124,11 @@ func (e *SyncEngine) StartFull(ctx context.Context) error {
 	if ignoredCount > 0 {
 		log.Printf("[sync] full: %d files ignored by patterns", ignoredCount)
 	}
+	pathIndex := buildPathIndex(files)
+	regularFiles, deselectedCount := e.filterSelected(regularFiles, pathIndex)
+	if deselectedCount > 0 {
+		log.Printf("[sync] full: %d files excluded by select patterns", deselectedCount)
+	}
 
 	// Set up progress tracking
 	tracker := NewProgressTracker(len(regularFiles))
@@ -232,6 +237,11 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 	regularFiles, ignoredCount := e.filterIgnored(regularFiles)
 	if ignoredCount > 0 {
 		log.Printf("[sync] incremental: %d files ignored by patterns", ignoredCount)
+	}
+	pathIndex := buildPathIndex(changedFiles)
+	regularFiles, deselectedCount := e.filterSelected(regularFiles, pathIndex)
+	if deselectedCount > 0 {
+		log.Printf("[sync] incremental: %d files excluded by select patterns", deselectedCount)
 	}
 
 	tracker := NewProgressTracker(len(regularFiles))
@@ -559,12 +569,17 @@ func (e *SyncEngine) DryRun(ctx context.Context) ([]DiffEntry, error) {
 		return nil, fmt.Errorf("list files: %w", err)
 	}
 
+	pathIndex := buildPathIndex(files)
+
 	var entries []DiffEntry
 	for _, f := range files {
 		if f.MimeType == "application/vnd.google-apps.folder" {
 			continue
 		}
 		if e.isIgnored(f) {
+			continue
+		}
+		if !e.isSelected(e.relPath(f, pathIndex)) {
 			continue
 		}
 
@@ -600,6 +615,77 @@ func (e *SyncEngine) isIgnored(file *driveapi.File) bool {
 		}
 	}
 	return false
+}
+
+// buildPathIndex maps file IDs to files for relative-path resolution.
+func buildPathIndex(files []*driveapi.File) map[string]*driveapi.File {
+	index := make(map[string]*driveapi.File, len(files))
+	for _, f := range files {
+		index[f.Id] = f
+	}
+	return index
+}
+
+// relPath builds the forward-slash relative path of a file from the sync root,
+// walking the parent chain via the in-memory index, falling back to the DB.
+func (e *SyncEngine) relPath(file *driveapi.File, index map[string]*driveapi.File) string {
+	parts := []string{file.Name}
+	parentID := ""
+	if len(file.Parents) > 0 {
+		parentID = file.Parents[0]
+	}
+	for parentID != "" && parentID != e.cfg.SyncFolderID {
+		if p, ok := index[parentID]; ok {
+			parts = append([]string{p.Name}, parts...)
+			if len(p.Parents) > 0 {
+				parentID = p.Parents[0]
+			} else {
+				parentID = ""
+			}
+			continue
+		}
+		dbp, err := e.store.GetFile(parentID)
+		if err != nil || dbp == nil {
+			break
+		}
+		parts = append([]string{dbp.Name}, parts...)
+		parentID = dbp.ParentID
+	}
+	return strings.Join(parts, "/")
+}
+
+// isSelected reports whether a relative path is included by the select patterns.
+// When no select patterns are configured, everything is selected.
+func (e *SyncEngine) isSelected(relPath string) bool {
+	hasPattern := false
+	for _, pattern := range e.cfg.SelectPatterns {
+		if strings.TrimSpace(pattern) == "" {
+			continue
+		}
+		hasPattern = true
+		if matchSelectPattern(pattern, relPath) {
+			return true
+		}
+	}
+	// No effective patterns -> select everything.
+	return !hasPattern
+}
+
+// filterSelected returns files included by the select patterns, plus a count excluded.
+func (e *SyncEngine) filterSelected(files []*driveapi.File, index map[string]*driveapi.File) ([]*driveapi.File, int) {
+	if len(e.cfg.SelectPatterns) == 0 {
+		return files, 0
+	}
+	var kept []*driveapi.File
+	excluded := 0
+	for _, f := range files {
+		if e.isSelected(e.relPath(f, index)) {
+			kept = append(kept, f)
+		} else {
+			excluded++
+		}
+	}
+	return kept, excluded
 }
 
 // filterIgnored returns files not matching any ignore pattern, plus a count of ignored.

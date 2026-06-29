@@ -38,5 +38,6 @@ export interface Config {
   max_workers: number /* int */;
   revision_naming: string;
   ignore_patterns: string[];
+  select_patterns: string[]; // 同期対象を限定する include パターン（空なら全件）
   distribution_targets: DistTargetConf[];
 }

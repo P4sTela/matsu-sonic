@@ -219,6 +219,55 @@ export function SettingsPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Selective Sync</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Include patterns to limit which files are synced. When empty, everything is synced.
+            Matched against the file path relative to the sync root.
+            A pattern without wildcards matches as a <strong>prefix</strong> (e.g. <code>videos/2024</code>
+            {" "}matches everything under it). Use <code>*</code> for a single path segment and
+            {" "}<code>**</code> for any depth (e.g. <code>videos/*</code>, <code>**/*.mp4</code>).
+          </p>
+          <div className="space-y-2">
+            {(draft.select_patterns ?? []).map((pattern, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={pattern}
+                  onChange={(e) => {
+                    const next = [...(draft.select_patterns ?? [])];
+                    next[i] = e.target.value;
+                    update({ select_patterns: next });
+                  }}
+                  className="flex-1 font-mono text-sm"
+                  placeholder="videos/2024"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const next = (draft.select_patterns ?? []).filter((_, j) => j !== i);
+                    update({ select_patterns: next });
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => update({ select_patterns: [...(draft.select_patterns ?? []), ""] })}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Pattern
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Danger Zone</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">

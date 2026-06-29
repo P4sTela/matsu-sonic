@@ -31,6 +31,7 @@ type Config struct {
 	MaxWorkers      int              `json:"max_workers"`
 	RevisionNaming  string           `json:"revision_naming"`
 	IgnorePatterns  []string         `json:"ignore_patterns"`
+	SelectPatterns  []string         `json:"select_patterns"` // 同期対象を限定する include パターン（空なら全件）
 	DistTargets     []DistTargetConf `json:"distribution_targets"`
 }
 

@@ -27,6 +27,7 @@ export function DistributePage() {
   const [files, setFiles] = useState<SyncedFile[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedTarget, setSelectedTarget] = useState("");
+  const [destDir, setDestDir] = useState("");
   const [distributing, setDistributing] = useState(false);
 
   const load = () => {
@@ -74,7 +75,7 @@ export function DistributePage() {
     if (selectedIds.size === 0 || !selectedTarget) return;
     setDistributing(true);
     try {
-      await api.distribute([...selectedIds], selectedTarget);
+      await api.distribute([...selectedIds], selectedTarget, destDir.trim() || undefined);
       setSelectedIds(new Set());
       load();
     } catch (e) {
@@ -251,6 +252,14 @@ export function DistributePage() {
                       <option key={t.name} value={t.name}>{t.name}</option>
                     ))}
                   </select>
+                </div>
+                <div className="flex-1">
+                  <Label>Destination Subdirectory (optional)</Label>
+                  <Input
+                    value={destDir}
+                    onChange={(e) => setDestDir(e.target.value)}
+                    placeholder="e.g. 2024/videos"
+                  />
                 </div>
                 <Button
                   onClick={handleDistribute}

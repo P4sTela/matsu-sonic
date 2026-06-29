@@ -74,6 +74,21 @@ export interface DistributeResult {
   path?: string;
   error?: string;
 }
+export interface VerifyResult {
+  file_id: string;
+  name: string;
+  status: string; // "ok", "mismatch", "missing", "skipped"
+  expected?: string;
+  actual?: string;
+}
+export interface VerifyResponse {
+  total: number /* int */;
+  ok: number /* int */;
+  mismatch: number /* int */;
+  missing: number /* int */;
+  skipped: number /* int */;
+  results: VerifyResult[];
+}
 export interface RevisionDownloadRequest {
   dest_dir: string;
 }
