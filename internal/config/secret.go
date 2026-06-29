@@ -90,6 +90,30 @@ func newGCM(key []byte) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
+// EncryptSecret encrypts plaintext using the key in dir/secret.key, returning
+// an "enc:"-prefixed base64 string. Exposed so other packages (e.g. the OAuth
+// token store) can encrypt secrets at rest with the same per-install key.
+func EncryptSecret(dir, plaintext string) (string, error) {
+	key, err := loadOrCreateKey(dir)
+	if err != nil {
+		return "", err
+	}
+	return encryptValue(key, plaintext)
+}
+
+// DecryptSecret reverses EncryptSecret. Values without the "enc:" prefix are
+// returned unchanged (backward compatibility with plaintext data).
+func DecryptSecret(dir, value string) (string, error) {
+	if !strings.HasPrefix(value, encPrefix) {
+		return value, nil
+	}
+	key, err := loadOrCreateKey(dir)
+	if err != nil {
+		return "", err
+	}
+	return decryptValue(key, value)
+}
+
 // encryptSecrets returns a copy of cfg with sensitive fields encrypted at rest.
 func encryptSecrets(cfg Config, dir string) (Config, error) {
 	if len(cfg.DistTargets) == 0 {

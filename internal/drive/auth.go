@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/P4sTela/matsu-sonic/internal/config"
@@ -42,20 +43,39 @@ func authServiceAccount(ctx context.Context, cfg *config.Config) (*driveapi.Serv
 	return driveapi.NewService(ctx, option.WithCredentials(creds))
 }
 
+// oauthConfigFor resolves the OAuth client configuration. It prefers an
+// explicit credentials_path (a downloaded client_secret_*.json) and otherwise
+// falls back to the credentials baked into the binary at build time, so a
+// standalone executable works without any extra files.
+func oauthConfigFor(cfg *config.Config) (*oauth2.Config, error) {
+	if cfg.CredentialsPath != "" {
+		credJSON, err := os.ReadFile(cfg.CredentialsPath)
+		if err != nil {
+			return nil, fmt.Errorf("read credentials: %w", err)
+		}
+		oauthCfg, err := google.ConfigFromJSON(credJSON, cfg.Scopes...)
+		if err != nil {
+			return nil, fmt.Errorf("parse oauth config: %w", err)
+		}
+		return oauthCfg, nil
+	}
+	if hasEmbeddedCredentials() {
+		return embeddedOAuthConfig(cfg.Scopes), nil
+	}
+	return nil, fmt.Errorf("no OAuth credentials available: set credentials_path or build with embedded credentials")
+}
+
 func authOAuth(ctx context.Context, cfg *config.Config) (*driveapi.Service, error) {
-	credJSON, err := os.ReadFile(cfg.CredentialsPath)
+	oauthCfg, err := oauthConfigFor(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("read credentials: %w", err)
+		return nil, err
 	}
 
-	oauthCfg, err := google.ConfigFromJSON(credJSON, cfg.Scopes...)
+	tokenPath := cfg.ResolvedTokenPath()
+	secretDir := cfg.SecretDir()
+	tok, err := loadToken(tokenPath, secretDir)
 	if err != nil {
-		return nil, fmt.Errorf("parse oauth config: %w", err)
-	}
-
-	tok, err := loadToken(cfg.TokenPath)
-	if err != nil {
-		tok, err = reauthorize(ctx, oauthCfg, cfg.TokenPath)
+		tok, err = reauthorize(ctx, oauthCfg, tokenPath, secretDir)
 		if err != nil {
 			return nil, err
 		}
@@ -68,11 +88,11 @@ func authOAuth(ctx context.Context, cfg *config.Config) (*driveapi.Service, erro
 		case rerr == nil:
 			if refreshed.AccessToken != tok.AccessToken {
 				tok = refreshed
-				_ = saveToken(cfg.TokenPath, tok)
+				_ = saveToken(tokenPath, secretDir, tok)
 			}
 		case isTokenRejected(rerr):
 			log.Printf("[auth] stored token rejected (%v); re-authenticating", rerr)
-			tok, err = reauthorize(ctx, oauthCfg, cfg.TokenPath)
+			tok, err = reauthorize(ctx, oauthCfg, tokenPath, secretDir)
 			if err != nil {
 				return nil, err
 			}
@@ -88,12 +108,12 @@ func authOAuth(ctx context.Context, cfg *config.Config) (*driveapi.Service, erro
 }
 
 // reauthorize runs the interactive OAuth flow and persists the new token.
-func reauthorize(ctx context.Context, oauthCfg *oauth2.Config, tokenPath string) (*oauth2.Token, error) {
+func reauthorize(ctx context.Context, oauthCfg *oauth2.Config, tokenPath, secretDir string) (*oauth2.Token, error) {
 	tok, err := obtainToken(ctx, oauthCfg)
 	if err != nil {
 		return nil, err
 	}
-	if err := saveToken(tokenPath, tok); err != nil {
+	if err := saveToken(tokenPath, secretDir, tok); err != nil {
 		return nil, err
 	}
 	return tok, nil
@@ -106,24 +126,47 @@ func isTokenRejected(err error) bool {
 	return errors.As(err, &re)
 }
 
-func loadToken(path string) (*oauth2.Token, error) {
+// loadToken reads the OAuth token, transparently decrypting it with the
+// per-install key in secretDir. Plaintext tokens (legacy, or when secretDir is
+// empty) are still accepted for backward compatibility.
+func loadToken(path, secretDir string) (*oauth2.Token, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
+	plain := string(data)
+	if secretDir != "" {
+		if dec, derr := config.DecryptSecret(secretDir, plain); derr == nil {
+			plain = dec
+		}
+	}
 	var tok oauth2.Token
-	if err := json.Unmarshal(data, &tok); err != nil {
+	if err := json.Unmarshal([]byte(plain), &tok); err != nil {
 		return nil, err
 	}
 	return &tok, nil
 }
 
-func saveToken(path string, tok *oauth2.Token) error {
+// saveToken persists the OAuth token, encrypting it at rest with the per-install
+// key in secretDir (same mechanism as config secrets). If secretDir is empty it
+// falls back to plaintext JSON.
+func saveToken(path, secretDir string, tok *oauth2.Token) error {
 	data, err := json.MarshalIndent(tok, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	payload := string(data)
+	if secretDir != "" {
+		if enc, eerr := config.EncryptSecret(secretDir, payload); eerr == nil {
+			payload = enc
+		}
+	}
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+	}
+	return os.WriteFile(path, []byte(payload), 0o600)
 }
 
 // AuthFlow represents an in-progress interactive OAuth authorization.
@@ -144,13 +187,9 @@ func BeginOAuth(cfg *config.Config) (*AuthFlow, error) {
 		return nil, fmt.Errorf("interactive authentication is not applicable for service account auth")
 	}
 
-	credJSON, err := os.ReadFile(cfg.CredentialsPath)
+	oauthCfg, err := oauthConfigFor(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("read credentials: %w", err)
-	}
-	oauthCfg, err := google.ConfigFromJSON(credJSON, cfg.Scopes...)
-	if err != nil {
-		return nil, fmt.Errorf("parse oauth config: %w", err)
+		return nil, err
 	}
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -160,13 +199,18 @@ func BeginOAuth(cfg *config.Config) (*AuthFlow, error) {
 	port := listener.Addr().(*net.TCPAddr).Port
 	oauthCfg.RedirectURL = fmt.Sprintf("http://127.0.0.1:%d/callback", port)
 
+	// PKCE: bind the authorization request to this flow so an intercepted
+	// authorization code cannot be exchanged without the verifier.
+	verifier := oauth2.GenerateVerifier()
+
 	flow := &AuthFlow{
 		// ApprovalForce ensures Google returns a refresh token even on re-auth.
-		AuthURL: oauthCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline, oauth2.ApprovalForce),
+		AuthURL: oauthCfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline, oauth2.ApprovalForce, oauth2.S256ChallengeOption(verifier)),
 		Done:    make(chan error, 1),
 	}
 
-	tokenPath := cfg.TokenPath
+	tokenPath := cfg.ResolvedTokenPath()
+	secretDir := cfg.SecretDir()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query().Get("code")
@@ -175,13 +219,13 @@ func BeginOAuth(cfg *config.Config) (*AuthFlow, error) {
 			flow.finish(fmt.Errorf("no code in callback"))
 			return
 		}
-		tok, err := oauthCfg.Exchange(context.Background(), code)
+		tok, err := oauthCfg.Exchange(context.Background(), code, oauth2.VerifierOption(verifier))
 		if err != nil {
 			fmt.Fprintln(w, "Authorization failed during token exchange. You can close this window.")
 			flow.finish(fmt.Errorf("exchange: %w", err))
 			return
 		}
-		if err := saveToken(tokenPath, tok); err != nil {
+		if err := saveToken(tokenPath, secretDir, tok); err != nil {
 			fmt.Fprintln(w, "Authorization succeeded but saving the token failed. You can close this window.")
 			flow.finish(fmt.Errorf("save token: %w", err))
 			return
@@ -240,12 +284,13 @@ func obtainToken(ctx context.Context, cfg *oauth2.Config) (*oauth2.Token, error)
 	go srv.Serve(listener)
 	defer srv.Shutdown(ctx)
 
-	authURL := cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	verifier := oauth2.GenerateVerifier()
+	authURL := cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(verifier))
 	fmt.Printf("Open this URL in your browser:\n%s\n", authURL)
 
 	select {
 	case code := <-codeCh:
-		return cfg.Exchange(ctx, code)
+		return cfg.Exchange(ctx, code, oauth2.VerifierOption(verifier))
 	case err := <-errCh:
 		return nil, err
 	case <-ctx.Done():

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -23,6 +24,45 @@ import (
 
 var version = "dev"
 
+// defaultConfigPath returns the default location of config.json. The app is
+// portable by default: state (config, database, token) lives in a .gdrive-sync
+// folder next to the executable, so the whole folder can be moved around
+// without writing into the user's home/config directories.
+//
+// If the executable directory is not writable (e.g. installed under
+// Program Files / /Applications, a read-only mount, or macOS app
+// translocation), it falls back to the per-user config directory so the app
+// still works instead of failing to start.
+func defaultConfigPath() string {
+	if dir, ok := portableBaseDir(); ok {
+		return filepath.Join(dir, ".gdrive-sync", "config.json")
+	}
+	if ucd, err := os.UserConfigDir(); err == nil && ucd != "" {
+		return filepath.Join(ucd, "matsu-sonic", "config.json")
+	}
+	return filepath.Join(".gdrive-sync", "config.json")
+}
+
+// portableBaseDir returns the executable's directory if it is writable.
+func portableBaseDir() (string, bool) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", false
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	dir := filepath.Dir(exe)
+	f, err := os.CreateTemp(dir, ".write-test-*")
+	if err != nil {
+		return "", false
+	}
+	name := f.Name()
+	f.Close()
+	os.Remove(name)
+	return dir, true
+}
+
 func main() {
 	var (
 		port        int
@@ -30,10 +70,9 @@ func main() {
 		showVersion bool
 	)
 
-	defaultConfig := filepath.Join(".gdrive-sync", "config.json")
-
 	flag.IntVar(&port, "port", 8765, "server port")
-	flag.StringVar(&configPath, "config", defaultConfig, "config file path")
+	flag.StringVar(&configPath, "config", defaultConfigPath(),
+		"config file path (default: .gdrive-sync next to the executable)")
 	flag.BoolVar(&showVersion, "version", false, "show version and exit")
 	flag.Parse()
 

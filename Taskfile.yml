@@ -2,6 +2,13 @@ version: "3"
 
 output: prefixed
 
+# OAuth client credentials baked into release binaries so a downloaded exe
+# works without a client_secret_*.json. Locally these are read from .env (see
+# .env.example); if unset, the build still works (no embedded creds, fine for
+# dev). These are a Google "Desktop app" client whose secret is not
+# confidential (PKCE protects the flow).
+dotenv: [".env"]
+
 tasks:
   types:
     desc: Generate TypeScript types from Go structs
@@ -18,7 +25,9 @@ tasks:
     desc: Start Go server with hot reload
     prefix: go
     cmds:
-      - air -- -port 8765
+      # Dev runs the binary from ./tmp, so pin state to the repo's .gdrive-sync
+      # instead of the (portable) default next to the executable.
+      - air -- -port 8765 -config .gdrive-sync/config.json
     internal: true
 
   dev:frontend:
@@ -34,19 +43,28 @@ tasks:
       - types
     cmds:
       - cd frontend && bun install &&bun run build
-      - CGO_ENABLED=1 go build -o gdrive-sync -ldflags="-s -w" .
+      - >-
+        CGO_ENABLED=1 go build -o gdrive-sync -ldflags="-s -w
+        -X github.com/P4sTela/matsu-sonic/internal/drive.DefaultClientID=${GOOGLE_OAUTH_CLIENT_ID}
+        -X github.com/P4sTela/matsu-sonic/internal/drive.DefaultClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET}" .
 
   build-linux:
     desc: Cross compile for Linux
     cmds:
       - cd frontend && bun install &&bun run build
-      - GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o gdrive-sync-linux -ldflags="-s -w" .
+      - >-
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o gdrive-sync-linux -ldflags="-s -w
+        -X github.com/P4sTela/matsu-sonic/internal/drive.DefaultClientID=${GOOGLE_OAUTH_CLIENT_ID}
+        -X github.com/P4sTela/matsu-sonic/internal/drive.DefaultClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET}" .
 
   build-windows:
     desc: Cross compile for Windows
     cmds:
       - cd frontend && bun install &&bun run build
-      - GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o gdrive-sync.exe -ldflags="-s -w" .
+      - >-
+        GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o gdrive-sync.exe -ldflags="-s -w
+        -X github.com/P4sTela/matsu-sonic/internal/drive.DefaultClientID=${GOOGLE_OAUTH_CLIENT_ID}
+        -X github.com/P4sTela/matsu-sonic/internal/drive.DefaultClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET}" .
 
   test:
     desc: Run all tests

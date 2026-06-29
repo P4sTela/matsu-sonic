@@ -10,6 +10,7 @@ tmp/
 # Secrets
 client_secret_*.json
 token.json
+.env
 
 # direnv
 .direnv/

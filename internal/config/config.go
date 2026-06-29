@@ -1,5 +1,7 @@
 package config
 
+import "path/filepath"
+
 // Export defines a Google Docs export format mapping.
 type Export struct {
 	MimeType  string `json:"mime"`
@@ -36,13 +38,42 @@ type Config struct {
 	IgnorePatterns  []string         `json:"ignore_patterns"`
 	SelectPatterns  []string         `json:"select_patterns"` // 同期対象を限定する include パターン（空なら全件）
 	DistTargets     []DistTargetConf `json:"distribution_targets"`
+
+	// configDir is the directory containing config.json. It is never persisted
+	// (unexported), and is used to resolve relative paths like token_path so the
+	// app folder stays portable.
+	configDir string
+}
+
+// SetConfigDir records the directory of config.json so relative paths can be
+// resolved against it at runtime.
+func (c *Config) SetConfigDir(dir string) { c.configDir = dir }
+
+// SecretDir returns the directory holding the local encryption key (secret.key),
+// i.e. the config directory. Used to encrypt the OAuth token at rest.
+func (c *Config) SecretDir() string { return c.configDir }
+
+// ResolvedTokenPath returns the absolute path to the OAuth token file. An empty
+// or relative token_path is resolved against the config directory, so no
+// absolute path is ever baked into config.json and the whole folder remains
+// portable.
+func (c *Config) ResolvedTokenPath() string {
+	p := c.TokenPath
+	if p == "" {
+		p = "token.json"
+	}
+	if filepath.IsAbs(p) || c.configDir == "" {
+		return p
+	}
+	return filepath.Join(c.configDir, p)
 }
 
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		AuthMethod:     "oauth",
-		TokenPath:      "token.json",
+		AuthMethod: "oauth",
+		// TokenPath is left empty and resolved at runtime via ResolvedTokenPath
+		// (relative to the config dir) so no absolute path is persisted.
 		Scopes:         []string{"https://www.googleapis.com/auth/drive.readonly"},
 		ChunkSizeMB:    10,
 		MaxWorkers:     3,

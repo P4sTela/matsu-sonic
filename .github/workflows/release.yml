@@ -54,9 +54,19 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "1"
           CC: ${{ matrix.cc || '' }}
+          # OAuth client baked into the released binary so a downloaded exe
+          # works without a client_secret_*.json. These come from repo/org
+          # secrets; the "Desktop app" client secret is not confidential and
+          # PKCE protects the authorization-code exchange.
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         run: |
+          CRED_PKG=github.com/P4sTela/matsu-sonic/internal/drive
           go build -o ${{ matrix.binary }} \
-            -ldflags="-s -w -X main.version=${{ github.ref_name }}" .
+            -ldflags="-s -w \
+              -X main.version=${{ github.ref_name }} \
+              -X ${CRED_PKG}.DefaultClientID=${GOOGLE_OAUTH_CLIENT_ID} \
+              -X ${CRED_PKG}.DefaultClientSecret=${GOOGLE_OAUTH_CLIENT_SECRET}" .
 
       - name: Archive (tar.gz)
         if: matrix.goos != 'windows'

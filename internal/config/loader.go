@@ -14,6 +14,7 @@ func Load(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			applyDefaults(&cfg, filepath.Dir(path))
 			if err := Save(path, cfg); err != nil {
 				return cfg, err
 			}
@@ -30,7 +31,7 @@ func Load(path string) (Config, error) {
 		return cfg, err
 	}
 
-	applyDefaults(&cfg)
+	applyDefaults(&cfg, filepath.Dir(path))
 	return cfg, nil
 }
 
@@ -54,8 +55,10 @@ func Save(path string, cfg Config) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
-// applyDefaults fills zero-value fields with sensible defaults.
-func applyDefaults(cfg *Config) {
+// applyDefaults fills zero-value fields with sensible defaults. configDir is the
+// directory holding config.json; app-local files (like the OAuth token) default
+// to live alongside it so everything stays self-contained / portable.
+func applyDefaults(cfg *Config, configDir string) {
 	if cfg.ChunkSizeMB == 0 {
 		cfg.ChunkSizeMB = 10
 	}
@@ -68,9 +71,10 @@ func applyDefaults(cfg *Config) {
 	if cfg.AuthMethod == "" {
 		cfg.AuthMethod = "oauth"
 	}
-	if cfg.TokenPath == "" {
-		cfg.TokenPath = "token.json"
-	}
+	// Record the config directory so relative paths (e.g. token_path) resolve
+	// against it. token_path itself is intentionally left untouched so no
+	// absolute path is ever persisted into config.json (keeps it portable).
+	cfg.SetConfigDir(configDir)
 	if len(cfg.Scopes) == 0 {
 		cfg.Scopes = []string{"https://www.googleapis.com/auth/drive.readonly"}
 	}

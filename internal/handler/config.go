@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 
 	cfgpkg "github.com/P4sTela/matsu-sonic/internal/config"
 )
@@ -75,8 +76,10 @@ func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Apply and save
+	// Apply and save. Re-record the config directory because replacing the
+	// whole struct drops the (unexported) value used to resolve token_path.
 	*h.Config = cfg
+	h.Config.SetConfigDir(filepath.Dir(h.ConfigPath))
 	if err := cfgpkg.Save(h.ConfigPath, cfg); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
