@@ -26,6 +26,10 @@ func Load(path string) (Config, error) {
 		return cfg, err
 	}
 
+	if err := decryptSecrets(&cfg, filepath.Dir(path)); err != nil {
+		return cfg, err
+	}
+
 	applyDefaults(&cfg)
 	return cfg, nil
 }
@@ -34,6 +38,11 @@ func Load(path string) (Config, error) {
 // It creates parent directories if needed.
 func Save(path string, cfg Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+
+	cfg, err := encryptSecrets(cfg, filepath.Dir(path))
+	if err != nil {
 		return err
 	}
 

@@ -41,3 +41,7 @@ export interface Config {
   select_patterns: string[]; // 同期対象を限定する include パターン（空なら全件）
   distribution_targets: DistTargetConf[];
 }
+
+//////////
+// source: secret.go
+

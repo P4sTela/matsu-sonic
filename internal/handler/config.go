@@ -7,13 +7,17 @@ import (
 	cfgpkg "github.com/P4sTela/matsu-sonic/internal/config"
 )
 
+// maskedPassword is the placeholder returned to clients in place of real secrets.
+const maskedPassword = "********"
+
 // GetConfig returns the current configuration (passwords masked).
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	cfg := *h.Config
-	// Mask sensitive fields
+	// Copy targets so masking does not mutate the live config.
+	cfg.DistTargets = append([]cfgpkg.DistTargetConf(nil), cfg.DistTargets...)
 	for i := range cfg.DistTargets {
 		if cfg.DistTargets[i].Password != "" {
-			cfg.DistTargets[i].Password = "********"
+			cfg.DistTargets[i].Password = maskedPassword
 		}
 	}
 	writeJSON(w, http.StatusOK, cfg)
@@ -55,6 +59,20 @@ func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid config values")
 		return
+	}
+
+	// Preserve existing distribution-target passwords when the client sends the
+	// masked placeholder (the UI never receives real passwords).
+	for i := range cfg.DistTargets {
+		if cfg.DistTargets[i].Password != maskedPassword {
+			continue
+		}
+		for _, old := range h.Config.DistTargets {
+			if old.Name == cfg.DistTargets[i].Name {
+				cfg.DistTargets[i].Password = old.Password
+				break
+			}
+		}
 	}
 
 	// Apply and save

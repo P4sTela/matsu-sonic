@@ -26,6 +26,16 @@ type AuthTestResponse struct {
 	User   AuthUser `json:"user"`
 }
 
+type AuthStatusResponse struct {
+	Authenticated bool   `json:"authenticated"`
+	Pending       bool   `json:"pending"`
+	AuthMethod    string `json:"auth_method"`
+}
+
+type AuthStartResponse struct {
+	AuthURL string `json:"auth_url"`
+}
+
 // --- Sync ---
 
 type SyncStartResponse struct {
@@ -36,6 +46,16 @@ type SyncStartResponse struct {
 type SyncStatusResponse struct {
 	IsRunning bool                  `json:"is_running"`
 	Progress  sync.ProgressSnapshot `json:"progress"`
+}
+
+type SyncPreviewRequest struct {
+	Patterns []string `json:"patterns"`
+}
+
+type SyncPreviewResponse struct {
+	Total   int      `json:"total"`   // total synced files considered
+	Matched int      `json:"matched"` // files selected by the patterns
+	Samples []string `json:"samples"` // up to a few matched relative paths
 }
 
 // --- Files ---

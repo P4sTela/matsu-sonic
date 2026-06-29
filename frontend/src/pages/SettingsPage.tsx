@@ -17,6 +17,9 @@ export function SettingsPage() {
   const [dirty, setDirty] = useState(false);
   const [authStatus, setAuthStatus] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<string | null>(null);
+  const [authorizing, setAuthorizing] = useState(false);
+  const [preview, setPreview] = useState<{ matched: number; total: number; samples: string[] } | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const [credsBrowserOpen, setCredsBrowserOpen] = useState(false);
   const [syncDirBrowserOpen, setSyncDirBrowserOpen] = useState(false);
   const [driveBrowserOpen, setDriveBrowserOpen] = useState(false);
@@ -51,6 +54,46 @@ export function SettingsPage() {
     }
   };
 
+  const handleAuthorize = async () => {
+    setAuthorizing(true);
+    setAuthStatus("testing");
+    try {
+      const { auth_url } = await api.startAuth();
+      window.open(auth_url, "_blank", "noopener,noreferrer");
+      // Poll until the browser callback completes the exchange.
+      for (let i = 0; i < 90; i++) {
+        await new Promise((res) => setTimeout(res, 2000));
+        try {
+          const result = await api.testAuth();
+          setAuthStatus("ok");
+          setAuthUser(`${result.user.displayName} (${result.user.emailAddress})`);
+          return;
+        } catch {
+          // not ready yet
+        }
+      }
+      setAuthStatus("error");
+      setAuthUser("Authorization not completed (timed out)");
+    } catch (e) {
+      setAuthStatus("error");
+      setAuthUser(e instanceof Error ? e.message : "Authorization failed");
+    } finally {
+      setAuthorizing(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!draft) return;
+    setPreviewing(true);
+    try {
+      setPreview(await api.previewSelect(draft.select_patterns ?? []));
+    } catch {
+      setPreview(null);
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
   if (loading) return <p className="text-center text-muted-foreground py-8">Loading...</p>;
   if (!draft) return <p className="text-center text-destructive py-8">{error}</p>;
 
@@ -78,10 +121,20 @@ export function SettingsPage() {
               </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="secondary" onClick={handleTestAuth}>
               Test Auth
             </Button>
+            {draft.auth_method !== "service_account" && (
+              <Button variant="outline" onClick={handleAuthorize} disabled={authorizing}>
+                {authorizing ? "Waiting for browser…" : "Authorize / Re-authorize"}
+              </Button>
+            )}
+            {authorizing && (
+              <span className="text-xs text-muted-foreground">
+                A browser tab was opened. Approve access, then return here.
+              </span>
+            )}
             {authStatus === "ok" && (
               <span className="flex items-center gap-1 text-sm text-green-600">
                 <CheckCircle className="h-4 w-4" />
@@ -255,14 +308,37 @@ export function SettingsPage() {
               </div>
             ))}
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => update({ select_patterns: [...(draft.select_patterns ?? []), ""] })}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Pattern
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => update({ select_patterns: [...(draft.select_patterns ?? []), ""] })}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Pattern
+            </Button>
+            <Button size="sm" variant="secondary" onClick={handlePreview} disabled={previewing}>
+              {previewing ? "Previewing…" : "Preview"}
+            </Button>
+          </div>
+          {preview && (
+            <div className="rounded border bg-muted/40 p-3 text-sm space-y-1">
+              <p>
+                <strong>{preview.matched}</strong> of <strong>{preview.total}</strong> synced files match.
+              </p>
+              {preview.samples.length > 0 && (
+                <ul className="font-mono text-xs text-muted-foreground space-y-0.5">
+                  {preview.samples.map((s, i) => (
+                    <li key={i} className="truncate">{s}</li>
+                  ))}
+                  {preview.matched > preview.samples.length && <li>…</li>}
+                </ul>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Preview is based on already-synced files (no Drive request).
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

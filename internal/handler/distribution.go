@@ -21,7 +21,7 @@ func (h *Handler) ListTargets(w http.ResponseWriter, r *http.Request) {
 	copy(masked, targets)
 	for i := range masked {
 		if masked[i].Password != "" {
-			masked[i].Password = "********"
+			masked[i].Password = maskedPassword
 		}
 	}
 	writeJSON(w, http.StatusOK, masked)

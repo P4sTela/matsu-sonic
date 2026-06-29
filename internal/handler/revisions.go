@@ -107,12 +107,15 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/config", h.UpdateConfig)
 
 		r.Post("/auth/test", h.TestAuth)
+		r.Post("/auth/start", h.StartAuth)
+		r.Get("/auth/status", h.GetAuthStatus)
 
 		r.Post("/sync/full", h.StartFullSync)
 		r.Post("/sync/incremental", h.StartIncrementalSync)
 		r.Post("/sync/cancel", h.CancelSync)
 		r.Get("/sync/status", h.GetSyncStatus)
 		r.Get("/sync/diff", h.GetSyncDiff)
+		r.Post("/sync/preview", h.PreviewSelect)
 		r.Post("/sync/reset", h.ResetSync)
 		r.Get("/sync/history", h.GetSyncHistory)
 

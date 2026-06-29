@@ -23,6 +23,10 @@ export const updateConfig = (data: Partial<import("./types").Config>) =>
 // Auth
 export const testAuth = () =>
   request<{ status: string; user: { displayName: string; emailAddress: string } }>("/auth/test", { method: "POST" });
+export const getAuthStatus = () =>
+  request<{ authenticated: boolean; pending: boolean; auth_method: string }>("/auth/status");
+export const startAuth = () =>
+  request<{ auth_url: string }>("/auth/start", { method: "POST" });
 
 // Sync
 export const startFullSync = () =>
@@ -35,6 +39,11 @@ export const resetSync = () =>
   request<{ status: string }>("/sync/reset", { method: "POST" });
 export const getSyncDiff = () =>
   request<import("./types").DiffEntry[]>("/sync/diff");
+export const previewSelect = (patterns: string[]) =>
+  request<{ total: number; matched: number; samples: string[] }>("/sync/preview", {
+    method: "POST",
+    body: JSON.stringify({ patterns }),
+  });
 export const getSyncStatus = () =>
   request<{ is_running: boolean; progress: import("./types").SyncProgress }>("/sync/status");
 export const getSyncHistory = (limit = 20) =>

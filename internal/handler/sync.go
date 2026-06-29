@@ -3,7 +3,11 @@ package handler
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
+
+	msync "github.com/P4sTela/matsu-sonic/internal/sync"
 )
 
 // StartFullSync starts a full sync in the background.
@@ -78,6 +82,56 @@ func (h *Handler) GetSyncDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, entries)
+}
+
+// PreviewSelect reports how many already-synced files match the given select
+// patterns, without contacting Drive. It is a cheap preview against the local
+// database to help validate patterns before saving.
+func (h *Handler) PreviewSelect(w http.ResponseWriter, r *http.Request) {
+	var req SyncPreviewRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	files, err := h.Store.ListFiles("")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	base := filepath.Clean(h.Config.LocalSyncDir)
+	resp := SyncPreviewResponse{Samples: []string{}}
+	for _, f := range files {
+		if f.IsFolder {
+			continue
+		}
+		resp.Total++
+		rel := relativeSyncPath(base, f.LocalPath, f.Name)
+		if msync.IsSelectedBy(req.Patterns, rel) {
+			resp.Matched++
+			if len(resp.Samples) < 10 {
+				resp.Samples = append(resp.Samples, rel)
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// relativeSyncPath returns the forward-slash path of a synced file relative to
+// the sync root, falling back to the file name when no usable path is stored.
+func relativeSyncPath(base, localPath, name string) string {
+	if localPath == "" {
+		return name
+	}
+	rel := localPath
+	if base != "" && base != "." {
+		if r, err := filepath.Rel(base, localPath); err == nil && !strings.HasPrefix(r, "..") {
+			rel = r
+		}
+	}
+	return filepath.ToSlash(rel)
 }
 
 // GetSyncHistory returns recent sync runs.

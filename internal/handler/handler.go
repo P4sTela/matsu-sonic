@@ -30,6 +30,9 @@ type Handler struct {
 	Engine      *msync.SyncEngine
 	DistManager *distribution.Manager
 	Hub         Broadcaster
+
+	authMu   sync.Mutex
+	authFlow *drive.AuthFlow
 }
 
 // GetDrive returns the Drive client under read lock.

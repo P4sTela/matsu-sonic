@@ -18,6 +18,14 @@ export interface AuthTestResponse {
   status: string;
   user: AuthUser;
 }
+export interface AuthStatusResponse {
+  authenticated: boolean;
+  pending: boolean;
+  auth_method: string;
+}
+export interface AuthStartResponse {
+  auth_url: string;
+}
 export interface SyncStartResponse {
   status: string;
   mode: string;
@@ -25,6 +33,14 @@ export interface SyncStartResponse {
 export interface SyncStatusResponse {
   is_running: boolean;
   progress: ProgressSnapshot;
+}
+export interface SyncPreviewRequest {
+  patterns: string[];
+}
+export interface SyncPreviewResponse {
+  total: number /* int */; // total synced files considered
+  matched: number /* int */; // files selected by the patterns
+  samples: string[]; // up to a few matched relative paths
 }
 export interface DeleteFilesRequest {
   file_ids: string[];

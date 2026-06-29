@@ -657,18 +657,7 @@ func (e *SyncEngine) relPath(file *driveapi.File, index map[string]*driveapi.Fil
 // isSelected reports whether a relative path is included by the select patterns.
 // When no select patterns are configured, everything is selected.
 func (e *SyncEngine) isSelected(relPath string) bool {
-	hasPattern := false
-	for _, pattern := range e.cfg.SelectPatterns {
-		if strings.TrimSpace(pattern) == "" {
-			continue
-		}
-		hasPattern = true
-		if matchSelectPattern(pattern, relPath) {
-			return true
-		}
-	}
-	// No effective patterns -> select everything.
-	return !hasPattern
+	return IsSelectedBy(e.cfg.SelectPatterns, relPath)
 }
 
 // filterSelected returns files included by the select patterns, plus a count excluded.

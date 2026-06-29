@@ -6,6 +6,22 @@ import (
 	"strings"
 )
 
+// IsSelectedBy reports whether relPath is included by the given select patterns.
+// Empty (or all-blank) patterns select everything, mirroring sync behaviour.
+func IsSelectedBy(patterns []string, relPath string) bool {
+	hasPattern := false
+	for _, pattern := range patterns {
+		if strings.TrimSpace(pattern) == "" {
+			continue
+		}
+		hasPattern = true
+		if matchSelectPattern(pattern, relPath) {
+			return true
+		}
+	}
+	return !hasPattern
+}
+
 // matchSelectPattern reports whether relPath (a forward-slash relative path
 // from the sync root) is selected by pattern.
 //
