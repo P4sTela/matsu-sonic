@@ -22,6 +22,11 @@ export interface DistTargetConf {
   username: string; // smb用
   password: string; // smb用
   domain: string; // smb用
+  /**
+   * SelectPatterns limits which synced files are distributed to this target.
+   * Empty means all files. Matched against the file path relative to the sync root.
+   */
+  select_patterns: string[];
 }
 /**
  * Config holds all application settings.

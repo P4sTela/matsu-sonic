@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Send, Trash2, Plus } from "lucide-react";
+import { Send, Trash2, Plus, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { FileTreePicker } from "@/components/FileTreePicker";
 import * as api from "@/api/client";
@@ -21,6 +20,7 @@ export function DistributePage() {
   const [targets, setTargets] = useState<DistTarget[]>([]);
   const [jobs, setJobs] = useState<DistJob[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingName, setEditingName] = useState<string | null>(null);
   const [newTarget, setNewTarget] = useState<Partial<DistTarget>>({ type: "local" });
 
   // File selection
@@ -38,20 +38,42 @@ export function DistributePage() {
 
   useEffect(load, []);
 
-  const handleAdd = async () => {
+  const openAdd = () => {
+    setEditingName(null);
+    setNewTarget({ type: "local", select_patterns: [] });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (t: DistTarget) => {
+    setEditingName(t.name);
+    setNewTarget({ ...t, select_patterns: t.select_patterns ?? [] });
+    setDialogOpen(true);
+  };
+
+  const handleSaveTarget = async () => {
     if (!newTarget.name) return;
     if (newTarget.type === "smb") {
       if (!newTarget.server || !newTarget.share) return;
     } else {
       if (!newTarget.path) return;
     }
+    // Drop blank patterns before saving.
+    const cleaned = {
+      ...newTarget,
+      select_patterns: (newTarget.select_patterns ?? []).map((p) => p.trim()).filter(Boolean),
+    } as DistTarget;
     try {
-      await api.addTarget(newTarget as DistTarget);
+      if (editingName) {
+        await api.updateTarget(editingName, cleaned);
+      } else {
+        await api.addTarget(cleaned);
+      }
       setDialogOpen(false);
+      setEditingName(null);
       setNewTarget({ type: "local" });
       load();
     } catch (e) {
-      toast.error("Failed to add target", {
+      toast.error(editingName ? "Failed to update target" : "Failed to add target", {
         description: e instanceof Error ? e.message : undefined,
       });
     }
@@ -75,7 +97,17 @@ export function DistributePage() {
     if (selectedIds.size === 0 || !selectedTarget) return;
     setDistributing(true);
     try {
-      await api.distribute([...selectedIds], selectedTarget, destDir.trim() || undefined);
+      const results = await api.distribute([...selectedIds], selectedTarget, destDir.trim() || undefined);
+      const skipped = results.filter((r) => r.status === "skipped").length;
+      const completed = results.filter((r) => r.status === "completed").length;
+      const failed = results.filter((r) => r.status === "failed").length;
+      if (skipped > 0) {
+        toast.warning(`${skipped} file(s) skipped (excluded by target patterns)`, {
+          description: `${completed} distributed${failed > 0 ? `, ${failed} failed` : ""}.`,
+        });
+      } else if (failed > 0) {
+        toast.error(`${failed} file(s) failed`, { description: `${completed} distributed.` });
+      }
       setSelectedIds(new Set());
       load();
     } catch (e) {
@@ -94,14 +126,14 @@ export function DistributePage() {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Distribution Targets</span>
+            <Button size="sm" onClick={openAdd}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Target
+            </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger render={<Button size="sm" />}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Target
-              </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add Distribution Target</DialogTitle>
+                  <DialogTitle>{editingName ? "Edit Distribution Target" : "Add Distribution Target"}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
@@ -110,6 +142,7 @@ export function DistributePage() {
                       value={newTarget.name || ""}
                       onChange={(e) => setNewTarget({ ...newTarget, name: e.target.value })}
                       placeholder="e.g. backup-drive"
+                      disabled={!!editingName}
                     />
                   </div>
                   <div>
@@ -184,9 +217,58 @@ export function DistributePage() {
                       />
                     </div>
                   )}
-                  <Button onClick={handleAdd} className="w-full">
+                  <div>
+                    <Label>Select Patterns (optional)</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Only files matching these patterns are distributed to this target.
+                      When empty, all selected files are sent. Matched against the path relative to
+                      the sync root (e.g. <code>videos/2024</code> as a prefix, <code>videos/*</code>,
+                      {" "}<code>**/*.mp4</code>).
+                    </p>
+                    <div className="space-y-2">
+                      {(newTarget.select_patterns ?? []).map((pattern, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <Input
+                            value={pattern}
+                            onChange={(e) => {
+                              const next = [...(newTarget.select_patterns ?? [])];
+                              next[i] = e.target.value;
+                              setNewTarget({ ...newTarget, select_patterns: next });
+                            }}
+                            className="flex-1 font-mono text-sm"
+                            placeholder="videos/2024"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              const next = (newTarget.select_patterns ?? []).filter((_, j) => j !== i);
+                              setNewTarget({ ...newTarget, select_patterns: next });
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2"
+                      onClick={() =>
+                        setNewTarget({
+                          ...newTarget,
+                          select_patterns: [...(newTarget.select_patterns ?? []), ""],
+                        })
+                      }
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Pattern
+                    </Button>
+                  </div>
+                  <Button onClick={handleSaveTarget} className="w-full">
                     <Send className="mr-2 h-4 w-4" />
-                    Add
+                    {editingName ? "Save Changes" : "Add"}
                   </Button>
                 </div>
               </DialogContent>
@@ -200,14 +282,26 @@ export function DistributePage() {
             <div className="space-y-2">
               {targets.map((t) => (
                 <div key={t.name} className="flex items-center justify-between rounded border p-3">
-                  <div>
-                    <span className="font-medium">{t.name}</span>
-                    <span className="ml-2 text-sm text-muted-foreground">
-                      {t.type === "smb" ? `\\\\${t.server}\\${t.share}` : t.path}
-                    </span>
+                  <div className="min-w-0">
+                    <div>
+                      <span className="font-medium">{t.name}</span>
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        {t.type === "smb" ? `\\\\${t.server}\\${t.share}` : t.path}
+                      </span>
+                    </div>
+                    {(t.select_patterns ?? []).length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {(t.select_patterns ?? []).map((p, i) => (
+                          <Badge key={i} variant="outline" className="font-mono text-[10px]">{p}</Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Badge variant="secondary">{t.type}</Badge>
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(t)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => handleRemove(t.name)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>

@@ -92,7 +92,7 @@ export function DirBrowser({ open, onOpenChange, onSelect, title = "Select Path"
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3 min-w-0">
           <div className="flex gap-2">
             <Input
               value={pathInput}
@@ -122,7 +122,7 @@ export function DirBrowser({ open, onOpenChange, onSelect, title = "Select Path"
                 {(result?.items ?? []).map((item) => (
                   <div
                     key={item.path}
-                    className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-accent text-sm"
+                    className="flex items-center justify-between gap-2 rounded px-2 py-1.5 hover:bg-accent text-sm min-w-0"
                   >
                     <button
                       className="flex items-center gap-2 flex-1 text-left min-w-0"

@@ -16,6 +16,9 @@ type DistTargetConf struct {
 	Username string `json:"username"` // smb用
 	Password string `json:"password"` // smb用
 	Domain   string `json:"domain"`   // smb用
+	// SelectPatterns limits which synced files are distributed to this target.
+	// Empty means all files. Matched against the file path relative to the sync root.
+	SelectPatterns []string `json:"select_patterns"`
 }
 
 // Config holds all application settings.

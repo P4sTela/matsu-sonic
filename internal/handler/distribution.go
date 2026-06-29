@@ -2,11 +2,13 @@ package handler
 
 import (
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	cfgpkg "github.com/P4sTela/matsu-sonic/internal/config"
 	"github.com/P4sTela/matsu-sonic/internal/distribution"
 	"github.com/P4sTela/matsu-sonic/internal/store"
+	msync "github.com/P4sTela/matsu-sonic/internal/sync"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -54,6 +56,45 @@ func (h *Handler) AddTarget(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, StatusResponse{Status: "added"})
+}
+
+// UpdateTarget updates an existing distribution target by name.
+func (h *Handler) UpdateTarget(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+
+	var update cfgpkg.DistTargetConf
+	if err := decodeJSON(r, &update); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+
+	idx := -1
+	for i, t := range h.Config.DistTargets {
+		if t.Name == name {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		writeError(w, http.StatusNotFound, "target not found")
+		return
+	}
+
+	if update.Name == "" {
+		update.Name = name
+	}
+	// Preserve the stored password when the client sends the masked placeholder.
+	if update.Password == maskedPassword {
+		update.Password = h.Config.DistTargets[idx].Password
+	}
+
+	h.Config.DistTargets[idx] = update
+	cfgpkg.Save(h.ConfigPath, *h.Config)
+	if h.DistManager != nil {
+		h.DistManager.Reload(h.Config.DistTargets)
+	}
+
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "updated"})
 }
 
 // RemoveTarget removes a distribution target by name.
@@ -142,10 +183,26 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 	var entries []fileEntry
 	var results []DistributeResult
 
+	// Per-target select patterns: only distribute files matching the target's patterns.
+	var selectPatterns []string
+	for _, t := range h.Config.DistTargets {
+		if t.Name == req.TargetName {
+			selectPatterns = t.SelectPatterns
+			break
+		}
+	}
+	base := filepath.Clean(h.Config.LocalSyncDir)
+
 	for _, fileID := range req.FileIDs {
 		f, err := h.Store.GetFile(fileID)
 		if err != nil {
 			results = append(results, DistributeResult{FileID: fileID, Status: "failed", Error: "file not found"})
+			continue
+		}
+
+		rel := relativeSyncPath(base, f.LocalPath, f.Name)
+		if !msync.IsSelectedBy(selectPatterns, rel) {
+			results = append(results, DistributeResult{FileID: fileID, Status: "skipped", Error: "excluded by target patterns"})
 			continue
 		}
 

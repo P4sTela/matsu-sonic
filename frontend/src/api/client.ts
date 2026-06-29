@@ -86,12 +86,17 @@ export const addTarget = (target: import("./types").DistTarget) =>
     method: "POST",
     body: JSON.stringify(target),
   });
+export const updateTarget = (name: string, target: import("./types").DistTarget) =>
+  request<{ status: string }>(`/distribution/targets/${name}`, {
+    method: "PUT",
+    body: JSON.stringify(target),
+  });
 export const removeTarget = (name: string) =>
   request<{ status: string }>(`/distribution/targets/${name}`, { method: "DELETE" });
 export const testTarget = (name: string) =>
   request<{ status: string }>(`/distribution/targets/${name}/test`, { method: "POST" });
 export const distribute = (fileIds: string[], targetName: string, destDir?: string) =>
-  request<{ status: string }>("/distribute", {
+  request<{ file_id: string; status: string; path?: string; error?: string }[]>("/distribute", {
     method: "POST",
     body: JSON.stringify({ file_ids: fileIds, target_name: targetName, dest_dir: destDir }),
   });

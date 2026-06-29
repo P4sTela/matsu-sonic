@@ -130,6 +130,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 		r.Get("/distribution/targets", h.ListTargets)
 		r.Post("/distribution/targets", h.AddTarget)
+		r.Put("/distribution/targets/{name}", h.UpdateTarget)
 		r.Delete("/distribution/targets/{name}", h.RemoveTarget)
 		r.Post("/distribution/targets/{name}/test", h.TestTarget)
 		r.Post("/distribute", h.Distribute)

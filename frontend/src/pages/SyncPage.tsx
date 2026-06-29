@@ -134,7 +134,7 @@ export function SyncPage() {
             {diff.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Everything is up to date</p>
             ) : (
-              <ScrollArea className="max-h-80">
+              <ScrollArea viewportClassName="max-h-80">
                 <Table>
                   <TableHeader>
                     <TableRow>
