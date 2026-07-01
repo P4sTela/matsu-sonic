@@ -92,7 +92,24 @@ export type WSMessage =
 	| { type: "verify_complete"; data: Omit<VerifyResponse, "results"> }
 	| { type: "conflicts_detected"; data: Conflict[] }
 	| { type: "conflict_skipped"; data: Conflict }
-	| { type: "convert_progress"; job_id: string; data: { file_id: string; converter: string; progress: number } }
-	| { type: "convert_complete"; job_id: string; data: { file_id: string; converter: string; output: string; output_size: number } }
-	| { type: "convert_error"; job_id: string; data: { file_id: string; converter: string; error: string } }
+	| {
+			type: "convert_progress";
+			job_id: string;
+			data: { file_id: string; converter: string; progress: number };
+	  }
+	| {
+			type: "convert_complete";
+			job_id: string;
+			data: {
+				file_id: string;
+				converter: string;
+				output: string;
+				output_size: number;
+			};
+	  }
+	| {
+			type: "convert_error";
+			job_id: string;
+			data: { file_id: string; converter: string; error: string };
+	  }
 	| { type: "pong" };

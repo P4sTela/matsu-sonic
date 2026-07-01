@@ -89,9 +89,9 @@ func (c *Config) ResolvedTokenPath() string {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		AuthMethod:        "oauth",
-		ConflictStrategy:  "skip",
-		ConverterWorkers:  1,
+		AuthMethod:       "oauth",
+		ConflictStrategy: "skip",
+		ConverterWorkers: 1,
 		// TokenPath is left empty and resolved at runtime via ResolvedTokenPath
 		// (relative to the config dir) so no absolute path is persisted.
 		Scopes:         []string{"https://www.googleapis.com/auth/drive.readonly"},

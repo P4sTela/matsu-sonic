@@ -25,9 +25,9 @@ type Manager struct {
 	st  *store.DB
 	hub Broadcaster
 
-	mu         gosync.Mutex
-	running    map[string]bool // job id -> running
-	workerSem  chan struct{}
+	mu        gosync.Mutex
+	running   map[string]bool // job id -> running
+	workerSem chan struct{}
 }
 
 // NewManager creates a conversion manager.
@@ -178,9 +178,9 @@ func (m *Manager) runConversion(conv *store.Conversion, cfg config.ConverterConf
 		outSize = outInfo.Size()
 	}
 	m.broadcast(conv.ID, "convert_complete", map[string]any{
-		"file_id":    conv.FileID,
-		"converter":  conv.Converter,
-		"output":     outPath,
+		"file_id":     conv.FileID,
+		"converter":   conv.Converter,
+		"output":      outPath,
 		"output_size": outSize,
 	})
 

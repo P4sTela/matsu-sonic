@@ -108,14 +108,15 @@ func main() {
 	hub := server.NewHub()
 	go hub.Run()
 
-	// Sync engine
-	engine := msync.NewSyncEngine(&cfg, drv, db, hub)
-
 	// Distribution manager
 	distMgr := distribution.NewManager(cfg.DistTargets)
 
 	// Converter manager
 	convMgr := converter.NewManager(&cfg, db, hub)
+
+	// Sync engine
+	engine := msync.NewSyncEngine(&cfg, drv, db, hub)
+	engine.SetConvManager(convMgr)
 
 	// HTTP server
 	srv := server.New(hub)

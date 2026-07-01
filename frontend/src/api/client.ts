@@ -179,15 +179,15 @@ export const getConflicts = () =>
 export const listConverters = () =>
 	request<import("./types").ConverterInfo[]>("/converters");
 export const convertFile = (fileID: string, converter: string) =>
-	request<{ status: string; job_id: string }>(
-		`/files/${fileID}/convert`,
-		{ method: "POST", body: JSON.stringify({ converter }) },
-	);
+	request<{ status: string; job_id: string }>(`/files/${fileID}/convert`, {
+		method: "POST",
+		body: JSON.stringify({ converter }),
+	});
 export const reconvertFile = (fileID: string, converter: string) =>
-	request<{ status: string; job_id: string }>(
-		`/files/${fileID}/reconvert`,
-		{ method: "POST", body: JSON.stringify({ converter }) },
-	);
+	request<{ status: string; job_id: string }>(`/files/${fileID}/reconvert`, {
+		method: "POST",
+		body: JSON.stringify({ converter }),
+	});
 export const listFileConversions = (fileID: string) =>
 	request<import("./types").Conversion[]>(`/files/${fileID}/conversions`);
 export const listConversions = (limit = 50) =>

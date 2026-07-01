@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/P4sTela/matsu-sonic/internal/config"
+	"github.com/P4sTela/matsu-sonic/internal/converter"
 	"github.com/P4sTela/matsu-sonic/internal/drive"
 	"github.com/P4sTela/matsu-sonic/internal/store"
 	"golang.org/x/sync/errgroup"
@@ -27,14 +28,15 @@ type Broadcaster interface {
 
 // SyncEngine orchestrates full and incremental sync operations.
 type SyncEngine struct {
-	cfg      *config.Config
-	drive    *drive.DriveClient
-	store    *store.DB
-	hub      Broadcaster
-	progress *ProgressTracker
-	cancel   context.CancelFunc
-	mu       gosync.Mutex
-	running  bool
+	cfg       *config.Config
+	drive     *drive.DriveClient
+	store     *store.DB
+	hub       Broadcaster
+	convMgr   *converter.Manager
+	progress  *ProgressTracker
+	cancel    context.CancelFunc
+	mu        gosync.Mutex
+	running   bool
 }
 
 // NewSyncEngine creates a new SyncEngine.
@@ -52,6 +54,13 @@ func (e *SyncEngine) SetDriveClient(drv *drive.DriveClient) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.drive = drv
+}
+
+// SetConvManager sets the converter manager for auto-convert after download.
+func (e *SyncEngine) SetConvManager(m *converter.Manager) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.convMgr = m
 }
 
 // IsRunning returns whether a sync is currently in progress.
@@ -453,6 +462,9 @@ func (e *SyncEngine) syncOneFile(ctx context.Context, file *driveapi.File, progr
 		log.Printf("[sync] failed to upsert file: %v", err)
 	}
 
+	// Auto-convert: run matching converters with auto_convert enabled.
+	e.autoConvertAfterDownload(file.Id)
+
 	progressChan <- ProgressEvent{
 		Type:            "file_done",
 		FileID:          file.Id,
@@ -762,6 +774,30 @@ func (e *SyncEngine) filterIgnored(files []*driveapi.File) ([]*driveapi.File, in
 		}
 	}
 	return kept, ignored
+}
+
+// autoConvertAfterDownload checks enabled auto_convert converters against the
+// newly downloaded file. Matching conversions are queued asynchronously.
+func (e *SyncEngine) autoConvertAfterDownload(fileID string) {
+	if e.convMgr == nil {
+		return
+	}
+	for _, c := range e.cfg.Converters {
+		if !c.Enabled || !c.AutoConvert {
+			continue
+		}
+		sf, err := e.store.GetFile(fileID)
+		if err != nil || sf == nil || sf.IsFolder {
+			continue
+		}
+		matched, _ := filepath.Match(c.InputPattern, sf.Name)
+		if !matched {
+			continue
+		}
+		if _, err := e.convMgr.Run(fileID, c.Name); err != nil {
+			log.Printf("[sync] auto-convert %s via %s: %v", fileID, c.Name, err)
+		}
+	}
 }
 
 // isFatalError returns true for errors that should stop the entire sync.

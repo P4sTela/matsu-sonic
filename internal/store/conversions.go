@@ -161,7 +161,11 @@ func scanConversion(s scanner) (*Conversion, error) {
 	return &c, nil
 }
 
-func scanConversions(rows interface{ Next() bool; Scan(...any) error; Close() error }) ([]Conversion, error) {
+func scanConversions(rows interface {
+	Next() bool
+	Scan(...any) error
+	Close() error
+}) ([]Conversion, error) {
 	var cs []Conversion
 	for rows.Next() {
 		var c Conversion

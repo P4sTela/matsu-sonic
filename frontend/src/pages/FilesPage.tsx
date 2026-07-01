@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Trash2, ShieldCheck, RefreshCw } from "lucide-react";
+import { Search, Trash2, ShieldCheck, RefreshCw, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { FileTreePicker } from "@/components/FileTreePicker";
 import { useSyncContext } from "@/hooks/SyncProvider";
 import * as api from "@/api/client";
-import type { SyncedFile } from "@/api/types";
+import type { SyncedFile, ConverterInfo } from "@/api/types";
 
 export function FilesPage() {
   const { verifyProgress } = useSyncContext();
@@ -54,6 +54,30 @@ export function FilesPage() {
   const [verifying, setVerifying] = useState(false);
   const [badFileIds, setBadFileIds] = useState<string[]>([]);
   const [resyncing, setResyncing] = useState(false);
+  const [converters, setConverters] = useState<ConverterInfo[]>([]);
+  const [converting, setConverting] = useState(false);
+
+  useEffect(() => {
+    api.listConverters().then((c) => setConverters(c ?? [])).catch(() => {});
+  }, []);
+
+  const handleConvert = async (converter: string) => {
+    if (selectedIds.size === 0) return;
+    setConverting(true);
+    let ok = 0;
+    for (const id of selectedIds) {
+      try {
+        await api.convertFile(id, converter);
+        ok++;
+      } catch (e) {
+        toast.error(`Convert failed for ${id}`, { description: e instanceof Error ? e.message : undefined });
+      }
+    }
+    if (ok > 0) toast.success(`Queued ${ok} file(s) for ${converter}`);
+    setConverting(false);
+  };
+
+  const activeConverters = converters.filter((c) => c.enabled);
 
   const handleVerify = async () => {
     setVerifying(true);
@@ -121,6 +145,12 @@ export function FilesPage() {
                 Re-sync {badFileIds.length} files
               </Button>
             )}
+            {selectedIds.size > 0 && activeConverters.map((c) => (
+              <Button key={c.name} size="sm" variant="outline" onClick={() => handleConvert(c.name)} disabled={converting}>
+                <Zap className="mr-2 h-4 w-4" />
+                {c.name}
+              </Button>
+            ))}
             {selectedIds.size > 0 && (
               <>
                 <Badge variant="secondary">{selectedIds.size} selected</Badge>
