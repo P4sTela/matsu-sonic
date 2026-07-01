@@ -34,6 +34,8 @@ export const startAuth = () =>
 	request<{ auth_url: string }>("/auth/start", { method: "POST" });
 
 // Sync
+export const startSync = () =>
+	request<{ status: string; mode: string }>("/sync", { method: "POST" });
 export const startFullSync = () =>
 	request<{ status: string; mode: string }>("/sync/full", { method: "POST" });
 export const startIncrementalSync = () =>

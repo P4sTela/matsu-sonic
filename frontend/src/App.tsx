@@ -13,6 +13,7 @@ import { DistributePage } from "@/pages/DistributePage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { SyncProvider } from "@/hooks/SyncProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const navItems = [
   { to: "/", icon: RefreshCw, label: "Sync" },
@@ -25,6 +26,7 @@ const navItems = [
 function App() {
   return (
     <SyncProvider>
+      <TooltipProvider>
       <div className="min-h-screen bg-background">
         <header className="border-b">
           <div className="max-w-5xl mx-auto px-4 flex items-center h-14 gap-6">
@@ -64,6 +66,7 @@ function App() {
         </main>
       </div>
       <Toaster />
+      </TooltipProvider>
     </SyncProvider>
   );
 }

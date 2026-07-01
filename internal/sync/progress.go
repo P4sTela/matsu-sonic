@@ -1,13 +1,16 @@
 package sync
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 // ProgressEvent represents a single sync progress event.
 type ProgressEvent struct {
-	Type            string  `json:"type"`              // "file_start" | "file_progress" | "file_done" | "file_skip" | "file_error" | "scan"
+	Type            string  `json:"type"` // "file_start" | "file_progress" | "file_done" | "file_skip" | "file_error" | "scan"
 	FileID          string  `json:"file_id"`
 	FileName        string  `json:"file_name"`
-	FileProgress    float64 `json:"file_progress"`     // 0.0 ~ 1.0
+	FileProgress    float64 `json:"file_progress"` // 0.0 ~ 1.0
 	BytesDownloaded int64   `json:"bytes_downloaded"`
 	Error           string  `json:"error,omitempty"`
 }
@@ -46,6 +49,7 @@ type ProgressTracker struct {
 	currentFile     string
 	currentProgress float64
 	activeDownloads map[string]ActiveDownload
+	activeOrder     []string // insertion-ordered list of file IDs for stable UI rendering
 	isRunning       bool
 	errors          []string
 }
@@ -68,12 +72,18 @@ func (t *ProgressTracker) Apply(e ProgressEvent) {
 	case "file_start":
 		t.currentFile = e.FileName
 		t.currentProgress = 0
+		if _, exists := t.activeDownloads[e.FileID]; !exists {
+			t.activeOrder = append(t.activeOrder, e.FileID)
+		}
 		t.activeDownloads[e.FileID] = ActiveDownload{
 			FileID: e.FileID, FileName: e.FileName, Progress: 0,
 		}
 	case "file_progress":
 		t.currentFile = e.FileName
 		t.currentProgress = e.FileProgress
+		if _, exists := t.activeDownloads[e.FileID]; !exists {
+			t.activeOrder = append(t.activeOrder, e.FileID)
+		}
 		t.activeDownloads[e.FileID] = ActiveDownload{
 			FileID: e.FileID, FileName: e.FileName, Progress: e.FileProgress,
 		}
@@ -82,11 +92,13 @@ func (t *ProgressTracker) Apply(e ProgressEvent) {
 		t.currentProgress = 1.0
 		t.bytesDownloaded += e.BytesDownloaded
 		delete(t.activeDownloads, e.FileID)
+		t.removeActiveOrder(e.FileID)
 	case "file_skip":
 		t.skippedFiles++
 	case "file_error":
 		t.failedFiles++
 		delete(t.activeDownloads, e.FileID)
+		t.removeActiveOrder(e.FileID)
 		if len(t.errors) < maxErrors {
 			t.errors = append(t.errors, e.Error)
 		}
@@ -103,9 +115,11 @@ func (t *ProgressTracker) Snapshot() ProgressSnapshot {
 	errs := make([]string, len(t.errors))
 	copy(errs, t.errors)
 
-	active := make([]ActiveDownload, 0, len(t.activeDownloads))
-	for _, d := range t.activeDownloads {
-		active = append(active, d)
+	active := make([]ActiveDownload, 0, len(t.activeOrder))
+	for _, id := range t.activeOrder {
+		if d, ok := t.activeDownloads[id]; ok {
+			active = append(active, d)
+		}
 	}
 
 	return ProgressSnapshot{
@@ -119,6 +133,16 @@ func (t *ProgressTracker) Snapshot() ProgressSnapshot {
 		ActiveDownloads:     active,
 		IsRunning:           t.isRunning,
 		Errors:              errs,
+	}
+}
+
+// removeActiveOrder removes the given file ID from the activeOrder slice.
+func (t *ProgressTracker) removeActiveOrder(id string) {
+	for i, v := range t.activeOrder {
+		if v == id {
+			t.activeOrder = slices.Delete(t.activeOrder, i, i+1)
+			return
+		}
 	}
 }
 

@@ -84,13 +84,8 @@ export function useSync() {
 
 	useWebSocket(onMessage);
 
-	const startFull = useCallback(async () => {
-		await api.startFullSync();
-		setProgress((prev) => ({ ...prev, is_running: true }));
-	}, []);
-
-	const startIncremental = useCallback(async () => {
-		await api.startIncrementalSync();
+	const startSync = useCallback(async () => {
+		await api.startSync();
 		setProgress((prev) => ({ ...prev, is_running: true }));
 	}, []);
 
@@ -114,8 +109,7 @@ export function useSync() {
 		conflicts,
 		skippedConflicts,
 		convertJobs,
-		startFull,
-		startIncremental,
+		startSync,
 		cancel,
 		refreshConflicts,
 		clearSkippedConflicts,

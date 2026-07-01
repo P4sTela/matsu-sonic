@@ -116,6 +116,17 @@ export function SettingsPage() {
 
 	return (
 		<div className="space-y-6">
+			{/* Sticky save bar */}
+			{dirty && (
+				<div className="sticky top-0 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur border-b flex items-center justify-between">
+					<span className="text-sm text-muted-foreground">Unsaved changes</span>
+					<Button onClick={handleSave}>
+						<Save className="mr-2 h-4 w-4" />
+						Save Settings
+					</Button>
+				</div>
+			)}
+
 			<Card>
 				<CardHeader>
 					<CardTitle>Authentication</CardTitle>
@@ -257,10 +268,6 @@ export function SettingsPage() {
 							/>
 						</div>
 					</div>
-					<Button onClick={handleSave} disabled={!dirty}>
-						<Save className="mr-2 h-4 w-4" />
-						{dirty ? "Save" : "Saved"}
-					</Button>
 				</CardContent>
 			</Card>
 

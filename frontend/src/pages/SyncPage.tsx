@@ -1,12 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-	Play,
-	RefreshCw,
-	Square,
-	AlertCircle,
-	Eye,
-	ShieldAlert,
-} from "lucide-react";
+import { Play, Square, AlertCircle, Eye, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +23,7 @@ export function SyncPage() {
 		progress,
 		conflicts,
 		skippedConflicts,
-		startFull,
-		startIncremental,
+		startSync,
 		cancel,
 		refreshConflicts,
 		clearSkippedConflicts,
@@ -49,12 +41,11 @@ export function SyncPage() {
 			.catch(() => {});
 	}, [progress.is_running]);
 
-	const handleSync = async (mode: "full" | "incremental") => {
+	const handleSync = async () => {
 		try {
 			setError(null);
 			setDiff(null);
-			if (mode === "full") await startFull();
-			else await startIncremental();
+			await startSync();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Failed to start sync");
 		}
@@ -99,44 +90,48 @@ export function SyncPage() {
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="flex gap-2">
-						<Button
-							onClick={() => handleSync("full")}
-							disabled={progress.is_running}
-						>
-							<Play className="mr-2 h-4 w-4" />
-							Full Sync
-						</Button>
-						<Button
-							variant="secondary"
-							onClick={() => handleSync("incremental")}
-							disabled={progress.is_running}
-						>
-							<RefreshCw className="mr-2 h-4 w-4" />
-							Incremental
-						</Button>
-						<Button
-							variant="outline"
-							onClick={handleDiff}
-							disabled={progress.is_running || diffLoading}
-						>
-							<Eye className="mr-2 h-4 w-4" />
-							{diffLoading ? "Checking..." : "Preview"}
-						</Button>
-						{progress.is_running && (
-							<Button variant="destructive" onClick={cancel}>
-								<Square className="mr-2 h-4 w-4" />
-								Cancel
+					<div className="space-y-3">
+						<div className="flex items-center gap-2">
+							<Button
+								onClick={handleSync}
+								disabled={progress.is_running}
+								size="lg"
+							>
+								<Play className="mr-2 h-5 w-5" />
+								Sync
 							</Button>
-						)}
-						<Button
-							variant="outline"
-							onClick={handleRefreshConflicts}
-							disabled={progress.is_running || conflictsLoading}
-						>
-							<ShieldAlert className="mr-2 h-4 w-4" />
-							{conflictsLoading ? "Checking..." : "Check Conflicts"}
-						</Button>
+							{progress.is_running && (
+								<Button variant="destructive" onClick={cancel}>
+									<Square className="mr-2 h-4 w-4" />
+									Cancel
+								</Button>
+							)}
+						</div>
+						<p className="text-xs text-muted-foreground">
+							New and changed files are downloaded automatically. First sync
+							does a full scan; later syncs only fetch changes.
+						</p>
+
+						<div className="flex gap-2 pt-1">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleDiff}
+								disabled={progress.is_running || diffLoading}
+							>
+								<Eye className="mr-2 h-4 w-4" />
+								{diffLoading ? "Checking..." : "Preview Changes"}
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleRefreshConflicts}
+								disabled={progress.is_running || conflictsLoading}
+							>
+								<ShieldAlert className="mr-2 h-4 w-4" />
+								{conflictsLoading ? "Checking..." : "Check Conflicts"}
+							</Button>
+						</div>
 					</div>
 
 					{error && (

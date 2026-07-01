@@ -9,6 +9,7 @@ import { FileTreePicker } from "@/components/FileTreePicker";
 import { useSyncContext } from "@/hooks/SyncProvider";
 import * as api from "@/api/client";
 import type { SyncedFile, ConverterInfo } from "@/api/types";
+import { globToRegex } from "@/lib/utils";
 
 export function FilesPage() {
 	const { verifyProgress } = useSyncContext();
@@ -19,9 +20,19 @@ export function FilesPage() {
 
 	const load = useCallback(() => {
 		setLoading(true);
+		// When search contains wildcards, fetch all and filter client-side.
+		// Otherwise use server-side LIKE search.
+		const isGlob = /[*?]/.test(search);
 		api
-			.listFiles(search)
-			.then((f) => setFiles(f ?? []))
+			.listFiles(isGlob ? "" : search)
+			.then((f) => {
+				let result = f ?? [];
+				if (isGlob) {
+					const re = globToRegex(search);
+					result = result.filter((file) => re.test(file.name));
+				}
+				setFiles(result);
+			})
 			.catch(() => setFiles([]))
 			.finally(() => setLoading(false));
 	}, [search]);
@@ -205,7 +216,7 @@ export function FilesPage() {
 				<div className="relative">
 					<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
 					<Input
-						placeholder="Search files..."
+						placeholder="Search files... (*.flac, report-?.pdf)"
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						className="pl-9"

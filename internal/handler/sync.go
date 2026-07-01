@@ -10,6 +10,33 @@ import (
 	msync "github.com/P4sTela/matsu-sonic/internal/sync"
 )
 
+// StartSync starts a sync in the background, automatically choosing incremental
+// when a change token is available, or falling back to full sync otherwise.
+func (h *Handler) StartSync(w http.ResponseWriter, r *http.Request) {
+	if h.Engine.IsRunning() {
+		writeError(w, http.StatusConflict, "sync already running")
+		return
+	}
+
+	// Try incremental first, fallback to full
+	token, err := h.Store.GetLastChangeToken()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var mode string
+	if token != "" {
+		go h.Engine.StartIncremental(context.Background())
+		mode = "incremental"
+	} else {
+		go h.Engine.StartFull(context.Background())
+		mode = "full"
+	}
+
+	writeJSON(w, http.StatusOK, SyncStartResponse{Status: "started", Mode: mode})
+}
+
 // StartFullSync starts a full sync in the background.
 func (h *Handler) StartFullSync(w http.ResponseWriter, r *http.Request) {
 	if h.Engine.IsRunning() {
