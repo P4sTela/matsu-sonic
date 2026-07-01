@@ -28,15 +28,15 @@ type Broadcaster interface {
 
 // SyncEngine orchestrates full and incremental sync operations.
 type SyncEngine struct {
-	cfg       *config.Config
-	drive     *drive.DriveClient
-	store     *store.DB
-	hub       Broadcaster
-	convMgr   *converter.Manager
-	progress  *ProgressTracker
-	cancel    context.CancelFunc
-	mu        gosync.Mutex
-	running   bool
+	cfg      *config.Config
+	drive    *drive.DriveClient
+	store    *store.DB
+	hub      Broadcaster
+	convMgr  *converter.Manager
+	progress *ProgressTracker
+	cancel   context.CancelFunc
+	mu       gosync.Mutex
+	running  bool
 }
 
 // NewSyncEngine creates a new SyncEngine.

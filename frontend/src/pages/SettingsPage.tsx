@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, CheckCircle, AlertCircle, FolderOpen, Trash2, Plus, X } from "lucide-react";
+import { Save, CheckCircle, AlertCircle, FolderOpen, Trash2, Plus, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -339,6 +339,146 @@ export function SettingsPage() {
               </p>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Converters</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            External command-based file converters (e.g. ffmpeg mp4→HAP).
+            Use <code>{"{{input}}"}</code>, <code>{"{{output}}"}</code>, <code>{"{{stem}}"}</code> in commands.
+          </p>
+          <div className="space-y-4">
+            {(draft.converters ?? []).map((c, i) => (
+              <div key={i} className="rounded border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={c.name}
+                      onChange={(e) => {
+                        const next = [...(draft.converters ?? [])];
+                        next[i] = { ...next[i], name: e.target.value };
+                        update({ converters: next });
+                      }}
+                      className="h-8 w-40 font-mono text-sm"
+                      placeholder="converter-name"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={c.enabled}
+                        onChange={(e) => {
+                          const next = [...(draft.converters ?? [])];
+                          next[i] = { ...next[i], enabled: e.target.checked };
+                          update({ converters: next });
+                        }}
+                        className="h-3 w-3"
+                      />
+                      Enabled
+                    </label>
+                    <label className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={c.auto_convert}
+                        onChange={(e) => {
+                          const next = [...(draft.converters ?? [])];
+                          next[i] = { ...next[i], auto_convert: e.target.checked };
+                          update({ converters: next });
+                        }}
+                        className="h-3 w-3"
+                      />
+                      Auto
+                    </label>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const next = (draft.converters ?? []).filter((_, j) => j !== i);
+                        update({ converters: next });
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs">Input Pattern</Label>
+                    <Input
+                      value={c.input_pattern}
+                      onChange={(e) => {
+                        const next = [...(draft.converters ?? [])];
+                        next[i] = { ...next[i], input_pattern: e.target.value };
+                        update({ converters: next });
+                      }}
+                      className="h-8 font-mono text-sm"
+                      placeholder="*.mp4"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Output Ext</Label>
+                    <Input
+                      value={c.output_extension}
+                      onChange={(e) => {
+                        const next = [...(draft.converters ?? [])];
+                        next[i] = { ...next[i], output_extension: e.target.value };
+                        update({ converters: next });
+                      }}
+                      className="h-8 font-mono text-sm"
+                      placeholder=".mov"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Output Dir</Label>
+                    <Input
+                      value={c.output_dir}
+                      onChange={(e) => {
+                        const next = [...(draft.converters ?? [])];
+                        next[i] = { ...next[i], output_dir: e.target.value };
+                        update({ converters: next });
+                      }}
+                      className="h-8 font-mono text-sm"
+                      placeholder="converted/hap"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Command</Label>
+                  <Input
+                    value={c.command}
+                    onChange={(e) => {
+                      const next = [...(draft.converters ?? [])];
+                      next[i] = { ...next[i], command: e.target.value };
+                      update({ converters: next });
+                    }}
+                    className="h-8 font-mono text-sm"
+                    placeholder='ffmpeg -y -i {"{{input}}"} -c:v hap {"{{output}}"}'
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              update({
+                converters: [
+                  ...(draft.converters ?? []),
+                  { name: "", enabled: true, input_pattern: "", output_extension: "", output_dir: "", command: "", auto_convert: false },
+                ],
+              })
+            }
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Converter
+          </Button>
         </CardContent>
       </Card>
 

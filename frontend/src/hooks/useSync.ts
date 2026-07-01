@@ -21,6 +21,13 @@ const emptyProgress: SyncProgress = {
 	errors: [],
 };
 
+// Conversion progress event
+export interface ConvertProgress {
+	file_id: string;
+	converter: string;
+	progress: number;
+}
+
 export function useSync() {
 	const [progress, setProgress] = useState<SyncProgress>(emptyProgress);
 	const [verifyProgress, setVerifyProgress] = useState<VerifyProgress | null>(
@@ -28,6 +35,7 @@ export function useSync() {
 	);
 	const [conflicts, setConflicts] = useState<Conflict[]>([]);
 	const [skippedConflicts, setSkippedConflicts] = useState<Conflict[]>([]);
+	const [convertJobs, setConvertJobs] = useState<Record<string, ConvertProgress>>({});
 
 	const onMessage = useCallback((msg: WSMessage) => {
 		switch (msg.type) {
@@ -48,6 +56,26 @@ export function useSync() {
 				break;
 			case "conflict_skipped":
 				setSkippedConflicts((prev) => [...prev, msg.data]);
+				break;
+			case "convert_progress":
+				setConvertJobs((prev) => ({
+					...prev,
+					[msg.job_id]: msg.data,
+				}));
+				break;
+			case "convert_complete":
+				setConvertJobs((prev) => {
+					const next = { ...prev };
+					delete next[msg.job_id];
+					return next;
+				});
+				break;
+			case "convert_error":
+				setConvertJobs((prev) => {
+					const next = { ...prev };
+					delete next[msg.job_id];
+					return next;
+				});
 				break;
 		}
 	}, []);
@@ -83,6 +111,7 @@ export function useSync() {
 		verifyProgress,
 		conflicts,
 		skippedConflicts,
+		convertJobs,
 		startFull,
 		startIncremental,
 		cancel,
