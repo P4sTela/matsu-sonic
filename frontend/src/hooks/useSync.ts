@@ -35,7 +35,9 @@ export function useSync() {
 	);
 	const [conflicts, setConflicts] = useState<Conflict[]>([]);
 	const [skippedConflicts, setSkippedConflicts] = useState<Conflict[]>([]);
-	const [convertJobs, setConvertJobs] = useState<Record<string, ConvertProgress>>({});
+	const [convertJobs, setConvertJobs] = useState<
+		Record<string, ConvertProgress>
+	>({});
 
 	const onMessage = useCallback((msg: WSMessage) => {
 		switch (msg.type) {
