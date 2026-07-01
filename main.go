@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/P4sTela/matsu-sonic/internal/config"
+	"github.com/P4sTela/matsu-sonic/internal/converter"
 	"github.com/P4sTela/matsu-sonic/internal/distribution"
 	"github.com/P4sTela/matsu-sonic/internal/drive"
 	"github.com/P4sTela/matsu-sonic/internal/handler"
@@ -113,6 +114,9 @@ func main() {
 	// Distribution manager
 	distMgr := distribution.NewManager(cfg.DistTargets)
 
+	// Converter manager
+	convMgr := converter.NewManager(&cfg, db, hub)
+
 	// HTTP server
 	srv := server.New(hub)
 
@@ -123,6 +127,7 @@ func main() {
 		Store:       db,
 		Drive:       drv,
 		Engine:      engine,
+		ConvManager: convMgr,
 		DistManager: distMgr,
 		Hub:         hub,
 	}

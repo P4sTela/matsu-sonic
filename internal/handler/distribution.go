@@ -174,7 +174,17 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Collect valid files for batch distribution.
+	// Resolve converter: request override > target default > none
+	converterName := req.Converter
+	if converterName == "" {
+		for _, t := range h.Config.DistTargets {
+			if t.Name == req.TargetName {
+				converterName = t.Converter
+				break
+			}
+		}
+	}
+
 	type fileEntry struct {
 		fileID    string
 		localPath string
@@ -183,7 +193,7 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 	var entries []fileEntry
 	var results []DistributeResult
 
-	// Per-target select patterns: only distribute files matching the target's patterns.
+	// Per-target select patterns
 	var selectPatterns []string
 	for _, t := range h.Config.DistTargets {
 		if t.Name == req.TargetName {
@@ -206,13 +216,35 @@ func (h *Handler) Distribute(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		destRelative := f.Name
-		if req.DestDir != "" {
-			destRelative = req.DestDir + "/" + f.Name
+		// Resolve source path: converted file if converter is specified
+		srcPath := f.LocalPath
+		srcName := f.Name
+		if converterName != "" {
+			conv, cerr := h.Store.GetConversion(fileID, converterName)
+			if cerr != nil || conv == nil {
+				results = append(results, DistributeResult{FileID: fileID, Status: "failed", Error: "conversion not found for " + converterName})
+				continue
+			}
+			if conv.Status != "completed" {
+				results = append(results, DistributeResult{FileID: fileID, Status: "failed", Error: "conversion is not completed (" + conv.Status + ")"})
+				continue
+			}
+			// Verify the conversion is fresh (original file hasn't changed since conversion)
+			if conv.OriginalModified != "" && conv.OriginalModified != f.LocalModified {
+				results = append(results, DistributeResult{FileID: fileID, Status: "failed", Error: "conversion is stale; reconvert first"})
+				continue
+			}
+			srcPath = conv.OutputPath
+			srcName = filepath.Base(conv.OutputPath)
 		}
 
-		files = append(files, distribution.FileCopy{Src: f.LocalPath, DestRelative: destRelative})
-		entries = append(entries, fileEntry{fileID: fileID, localPath: f.LocalPath})
+		destRelative := srcName
+		if req.DestDir != "" {
+			destRelative = req.DestDir + "/" + srcName
+		}
+
+		files = append(files, distribution.FileCopy{Src: srcPath, DestRelative: destRelative})
+		entries = append(entries, fileEntry{fileID: fileID, localPath: srcPath})
 	}
 
 	if len(files) > 0 {

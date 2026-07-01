@@ -141,5 +141,15 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/drive/browse", h.BrowseDrive)
 
 		r.Get("/conflicts", h.GetConflicts)
+
+		r.Route("/files/{fileID}", func(r chi.Router) {
+			r.Post("/convert", h.ConvertFile)
+			r.Post("/reconvert", h.ReconvertFile)
+			r.Get("/conversions", h.ListFileConversions)
+		})
+		r.Get("/converters", h.ListConverters)
+		r.Get("/conversions", h.ListConversions)
+		r.Get("/conversions/stale", h.ListStaleConversions)
+		r.Delete("/conversions/{id}", h.DeleteConversion)
 	})
 }

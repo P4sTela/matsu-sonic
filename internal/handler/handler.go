@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/P4sTela/matsu-sonic/internal/config"
+	"github.com/P4sTela/matsu-sonic/internal/converter"
 	"github.com/P4sTela/matsu-sonic/internal/distribution"
 	"github.com/P4sTela/matsu-sonic/internal/drive"
 	"github.com/P4sTela/matsu-sonic/internal/store"
@@ -28,6 +29,7 @@ type Handler struct {
 	Drive       *drive.DriveClient
 	driveMu     sync.RWMutex
 	Engine      *msync.SyncEngine
+	ConvManager *converter.Manager
 	DistManager *distribution.Manager
 	Hub         Broadcaster
 

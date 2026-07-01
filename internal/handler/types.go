@@ -115,6 +115,7 @@ type DistributeRequest struct {
 	FileIDs    []string `json:"file_ids"`
 	TargetName string   `json:"target_name"`
 	DestDir    string   `json:"dest_dir"`
+	Converter  string   `json:"converter,omitempty"` // optional: use this converter's output file
 }
 
 type DistributeResult struct {

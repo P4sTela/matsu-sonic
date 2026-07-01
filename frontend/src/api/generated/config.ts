@@ -27,6 +27,24 @@ export interface DistTargetConf {
    * Empty means all files. Matched against the file path relative to the sync root.
    */
   select_patterns: string[];
+  /**
+   * Converter names a converter whose output file should be distributed
+   * instead of the original synced file. Leave empty to distribute the original.
+   */
+  converter?: string;
+}
+/**
+ * ConverterConf defines an external command-based file converter.
+ */
+export interface ConverterConf {
+  name: string;
+  enabled: boolean;
+  input_pattern: string; // glob, e.g. "*.mp4"
+  output_extension: string; // e.g. ".mov"
+  output_dir: string; // e.g. "converted/hap" (relative to sync root)
+  command: string; // e.g. "ffmpeg -i {{input}} -c:v hap {{output}}"
+  env?: string[];
+  auto_convert: boolean; // run automatically after sync
 }
 /**
  * Config holds all application settings.
@@ -45,6 +63,8 @@ export interface Config {
   ignore_patterns: string[];
   select_patterns: string[]; // 同期対象を限定する include パターン（空なら全件）
   conflict_strategy: string; // "skip" | "overwrite"
+  converters: ConverterConf[];
+  converter_workers: number /* int */; // default 1
   distribution_targets: DistTargetConf[];
 }
 

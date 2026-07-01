@@ -83,6 +83,7 @@ export interface DistributeRequest {
   file_ids: string[];
   target_name: string;
   dest_dir: string;
+  converter?: string; // optional: use this converter's output file
 }
 export interface DistributeResult {
   file_id: string;

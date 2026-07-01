@@ -21,6 +21,21 @@ type DistTargetConf struct {
 	// SelectPatterns limits which synced files are distributed to this target.
 	// Empty means all files. Matched against the file path relative to the sync root.
 	SelectPatterns []string `json:"select_patterns"`
+	// Converter names a converter whose output file should be distributed
+	// instead of the original synced file. Leave empty to distribute the original.
+	Converter string `json:"converter,omitempty"`
+}
+
+// ConverterConf defines an external command-based file converter.
+type ConverterConf struct {
+	Name            string   `json:"name"`
+	Enabled         bool     `json:"enabled"`
+	InputPattern    string   `json:"input_pattern"`    // glob, e.g. "*.mp4"
+	OutputExtension string   `json:"output_extension"` // e.g. ".mov"
+	OutputDir       string   `json:"output_dir"`       // e.g. "converted/hap" (relative to sync root)
+	Command         string   `json:"command"`          // e.g. "ffmpeg -i {{input}} -c:v hap {{output}}"
+	Env             []string `json:"env,omitempty"`
+	AutoConvert     bool     `json:"auto_convert"` // run automatically after sync
 }
 
 // Config holds all application settings.
@@ -38,6 +53,8 @@ type Config struct {
 	IgnorePatterns   []string          `json:"ignore_patterns"`
 	SelectPatterns   []string          `json:"select_patterns"`   // 同期対象を限定する include パターン（空なら全件）
 	ConflictStrategy string            `json:"conflict_strategy"` // "skip" | "overwrite"
+	Converters       []ConverterConf   `json:"converters"`
+	ConverterWorkers int               `json:"converter_workers"` // default 1
 	DistTargets      []DistTargetConf  `json:"distribution_targets"`
 
 	// configDir is the directory containing config.json. It is never persisted
@@ -72,8 +89,9 @@ func (c *Config) ResolvedTokenPath() string {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		AuthMethod:       "oauth",
-		ConflictStrategy: "skip",
+		AuthMethod:        "oauth",
+		ConflictStrategy:  "skip",
+		ConverterWorkers:  1,
 		// TokenPath is left empty and resolved at runtime via ResolvedTokenPath
 		// (relative to the config dir) so no absolute path is persisted.
 		Scopes:         []string{"https://www.googleapis.com/auth/drive.readonly"},

@@ -45,7 +45,7 @@ func (db *DB) Conn() *sql.DB {
 
 // ClearAll deletes all synced files and sync run records.
 func (db *DB) ClearAll() error {
-	_, err := db.conn.Exec(`DELETE FROM synced_files; DELETE FROM sync_runs; DELETE FROM downloaded_revisions; DELETE FROM distribution_jobs;`)
+	_, err := db.conn.Exec(`DELETE FROM synced_files; DELETE FROM sync_runs; DELETE FROM downloaded_revisions; DELETE FROM distribution_jobs; DELETE FROM conversions;`)
 	return err
 }
 
@@ -103,6 +103,24 @@ var migrations = []string{
 	// v2: track local file state for conflict detection
 	`ALTER TABLE synced_files ADD COLUMN local_size INTEGER DEFAULT 0;
 	ALTER TABLE synced_files ADD COLUMN local_modified TEXT DEFAULT '';`,
+
+	// v3: converter plugin conversion records
+	`CREATE TABLE IF NOT EXISTS conversions (
+		id               TEXT PRIMARY KEY,
+		file_id          TEXT NOT NULL,
+		converter        TEXT NOT NULL,
+		input_path       TEXT NOT NULL,
+		output_path      TEXT,
+		status           TEXT DEFAULT 'pending',
+		error_message    TEXT,
+		started_at       TEXT,
+		finished_at      TEXT,
+		original_size    INTEGER DEFAULT 0,
+		original_modified TEXT DEFAULT '',
+		UNIQUE(file_id, converter)
+	);
+	CREATE INDEX IF NOT EXISTS idx_conversions_file ON conversions(file_id);
+	CREATE INDEX IF NOT EXISTS idx_conversions_status ON conversions(status);`,
 }
 
 func (db *DB) migrate() error {
