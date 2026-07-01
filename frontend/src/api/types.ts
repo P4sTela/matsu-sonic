@@ -93,6 +93,11 @@ export type WSMessage =
 	| { type: "conflicts_detected"; data: Conflict[] }
 	| { type: "conflict_skipped"; data: Conflict }
 	| {
+			type: "convert_start";
+			job_id: string;
+			data: { file_id: string; converter: string };
+	  }
+	| {
 			type: "convert_progress";
 			job_id: string;
 			data: { file_id: string; converter: string; progress: number };
