@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/P4sTela/matsu-sonic/internal/store"
+	"github.com/go-chi/chi/v5"
 )
 
 // ListRevisions lists revisions for a file from the Drive API.
@@ -139,5 +139,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Get("/browse", h.BrowseDirectory)
 		r.Post("/mkdir", h.MakeDirectory)
 		r.Get("/drive/browse", h.BrowseDrive)
+
+		r.Get("/conflicts", h.GetConflicts)
 	})
 }

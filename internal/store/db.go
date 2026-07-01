@@ -99,6 +99,10 @@ var migrations = []string{
 		error_message TEXT
 	);
 	CREATE INDEX IF NOT EXISTS idx_dist_status ON distribution_jobs(status);`,
+
+	// v2: track local file state for conflict detection
+	`ALTER TABLE synced_files ADD COLUMN local_size INTEGER DEFAULT 0;
+	ALTER TABLE synced_files ADD COLUMN local_modified TEXT DEFAULT '';`,
 }
 
 func (db *DB) migrate() error {

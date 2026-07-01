@@ -399,3 +399,70 @@ func TestDownloadFilesSkipsUpToDate(t *testing.T) {
 		t.Error("expected file_skip event for f1")
 	}
 }
+
+func TestDownloadFilesSkipsLocalConflict(t *testing.T) {
+	engine, db, _, syncDir := setupTestEngine(t)
+
+	// Pre-register a file whose local state has changed since sync.
+	localPath := filepath.Join(syncDir, "edited.txt")
+	os.WriteFile(localPath, []byte("user edited content"), 0o644)
+
+	info, err := os.Stat(localPath)
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+
+	db.UpsertFile(store.SyncedFile{
+		FileID:        "f1",
+		Name:          "edited.txt",
+		MD5Checksum:   "old-checksum",
+		LocalPath:     localPath,
+		LocalSize:     0, // baseline differs from current size
+		LocalModified: info.ModTime().UTC().Format(time.RFC3339Nano),
+	})
+
+	files := []*driveapi.File{
+		{
+			Id:           "f1",
+			Name:         "edited.txt",
+			MimeType:     "text/plain",
+			Md5Checksum:  "new-checksum",
+			ModifiedTime: time.Now().UTC().Add(time.Minute).Format(time.RFC3339Nano),
+			Parents:      []string{"root-folder"},
+		},
+	}
+
+	progressChan := make(chan ProgressEvent, 10)
+	done := make(chan struct{})
+	var events []ProgressEvent
+	go func() {
+		for e := range progressChan {
+			events = append(events, e)
+		}
+		close(done)
+	}()
+
+	synced, failed, bytes := engine.downloadFiles(context.Background(), files, progressChan)
+	close(progressChan)
+	<-done
+
+	if synced != 0 {
+		t.Errorf("synced = %d, want 0 (conflict should be skipped)", synced)
+	}
+	if failed != 0 {
+		t.Errorf("failed = %d, want 0", failed)
+	}
+	if bytes != 0 {
+		t.Errorf("bytes = %d, want 0", bytes)
+	}
+
+	found := false
+	for _, e := range events {
+		if e.Type == "file_skip" && e.FileID == "f1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected file_skip event for conflicted f1")
+	}
+}

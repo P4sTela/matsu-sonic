@@ -130,6 +130,9 @@ func (e *SyncEngine) StartFull(ctx context.Context) error {
 		log.Printf("[sync] full: %d files excluded by select patterns", deselectedCount)
 	}
 
+	// Detect local conflicts before downloading.
+	e.detectAndBroadcastConflicts(ctx)
+
 	// Set up progress tracking
 	tracker := NewProgressTracker(len(regularFiles))
 	e.mu.Lock()
@@ -244,6 +247,9 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 		log.Printf("[sync] incremental: %d files excluded by select patterns", deselectedCount)
 	}
 
+	// Detect local conflicts before downloading.
+	e.detectAndBroadcastConflicts(ctx)
+
 	tracker := NewProgressTracker(len(regularFiles))
 	e.mu.Lock()
 	e.progress = tracker
@@ -273,6 +279,38 @@ func (e *SyncEngine) StartIncremental(ctx context.Context) error {
 	e.finishRun(runID, status, synced, failed, bytes, newToken)
 	log.Printf("[sync] incremental sync done: synced=%d failed=%d bytes=%d", synced, failed, bytes)
 	return nil
+}
+
+// detectAndBroadcastConflicts scans local synced files for conflicts and
+// broadcasts a warning message via the WebSocket hub. It does not stop sync.
+func (e *SyncEngine) detectAndBroadcastConflicts(ctx context.Context) {
+	conflicts, err := DetectConflicts(e.store)
+	if err != nil {
+		log.Printf("[sync] conflict detection failed: %v", err)
+		return
+	}
+	if len(conflicts) == 0 {
+		return
+	}
+
+	log.Printf("[sync] detected %d local conflict(s)", len(conflicts))
+	if e.hub == nil {
+		return
+	}
+
+	msg := struct {
+		Type string     `json:"type"`
+		Data []Conflict `json:"data"`
+	}{Type: "conflicts_detected", Data: conflicts}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	select {
+	case <-ctx.Done():
+	default:
+		e.hub.Broadcast(data)
+	}
 }
 
 // downloadFiles downloads files in parallel using errgroup.
@@ -335,6 +373,20 @@ func (e *SyncEngine) syncOneFile(ctx context.Context, file *driveapi.File, progr
 		return 0, nil
 	}
 
+	// Detect local conflicts before overwriting.
+	if conflict, err := CheckConflict(local); err == nil && conflict != nil {
+		log.Printf("[sync] conflict for %s (%s): %s", file.Name, conflict.Type, conflict.LocalPath)
+		if e.cfg.ConflictStrategy != "overwrite" {
+			progressChan <- ProgressEvent{
+				Type:     "file_skip",
+				FileID:   file.Id,
+				FileName: file.Name,
+			}
+			e.broadcastConflictSkipped(*conflict)
+			return 0, nil
+		}
+	}
+
 	progressChan <- ProgressEvent{
 		Type:     "file_start",
 		FileID:   file.Id,
@@ -379,11 +431,12 @@ func (e *SyncEngine) syncOneFile(ctx context.Context, file *driveapi.File, progr
 		return 0, err
 	}
 
-	// Update DB
+	// Update DB, capturing local filesystem state for future conflict detection.
 	parentID := ""
 	if len(file.Parents) > 0 {
 		parentID = file.Parents[0]
 	}
+	localSize, localMod, _ := RecordLocalState(destPath)
 	if err := e.store.UpsertFile(store.SyncedFile{
 		FileID:        file.Id,
 		Name:          file.Name,
@@ -394,6 +447,8 @@ func (e *SyncEngine) syncOneFile(ctx context.Context, file *driveapi.File, progr
 		LocalPath:     destPath,
 		LastSynced:    time.Now().UTC().Format(time.RFC3339),
 		ParentID:      parentID,
+		LocalSize:     localSize,
+		LocalModified: localMod,
 	}); err != nil {
 		log.Printf("[sync] failed to upsert file: %v", err)
 	}
@@ -445,6 +500,21 @@ func (e *SyncEngine) progressLoop(ctx context.Context, progressChan <-chan Progr
 			return
 		}
 	}
+}
+
+func (e *SyncEngine) broadcastConflictSkipped(conflict Conflict) {
+	if e.hub == nil {
+		return
+	}
+	msg := struct {
+		Type string   `json:"type"`
+		Data Conflict `json:"data"`
+	}{Type: "conflict_skipped", Data: conflict}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	e.hub.Broadcast(data)
 }
 
 func (e *SyncEngine) broadcastSnapshot(tracker *ProgressTracker) {
@@ -713,4 +783,3 @@ func isFatalError(err error) bool {
 	}
 	return false
 }
-

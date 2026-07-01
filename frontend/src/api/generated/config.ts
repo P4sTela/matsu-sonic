@@ -44,6 +44,7 @@ export interface Config {
   revision_naming: string;
   ignore_patterns: string[];
   select_patterns: string[]; // 同期対象を限定する include パターン（空なら全件）
+  conflict_strategy: string; // "skip" | "overwrite"
   distribution_targets: DistTargetConf[];
 }
 

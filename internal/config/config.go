@@ -25,19 +25,20 @@ type DistTargetConf struct {
 
 // Config holds all application settings.
 type Config struct {
-	AuthMethod      string            `json:"auth_method"`       // "oauth" | "service_account"
-	CredentialsPath string            `json:"credentials_path"`
-	TokenPath       string            `json:"token_path"`
-	SyncFolderID    string            `json:"sync_folder_id"`
-	LocalSyncDir    string            `json:"local_sync_dir"`
-	Scopes          []string          `json:"scopes"`
-	ExportFormats   map[string]Export `json:"export_formats"`
-	ChunkSizeMB     int              `json:"chunk_size_mb"`
-	MaxWorkers      int              `json:"max_workers"`
-	RevisionNaming  string           `json:"revision_naming"`
-	IgnorePatterns  []string         `json:"ignore_patterns"`
-	SelectPatterns  []string         `json:"select_patterns"` // 同期対象を限定する include パターン（空なら全件）
-	DistTargets     []DistTargetConf `json:"distribution_targets"`
+	AuthMethod       string            `json:"auth_method"` // "oauth" | "service_account"
+	CredentialsPath  string            `json:"credentials_path"`
+	TokenPath        string            `json:"token_path"`
+	SyncFolderID     string            `json:"sync_folder_id"`
+	LocalSyncDir     string            `json:"local_sync_dir"`
+	Scopes           []string          `json:"scopes"`
+	ExportFormats    map[string]Export `json:"export_formats"`
+	ChunkSizeMB      int               `json:"chunk_size_mb"`
+	MaxWorkers       int               `json:"max_workers"`
+	RevisionNaming   string            `json:"revision_naming"`
+	IgnorePatterns   []string          `json:"ignore_patterns"`
+	SelectPatterns   []string          `json:"select_patterns"`   // 同期対象を限定する include パターン（空なら全件）
+	ConflictStrategy string            `json:"conflict_strategy"` // "skip" | "overwrite"
+	DistTargets      []DistTargetConf  `json:"distribution_targets"`
 
 	// configDir is the directory containing config.json. It is never persisted
 	// (unexported), and is used to resolve relative paths like token_path so the
@@ -71,7 +72,8 @@ func (c *Config) ResolvedTokenPath() string {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
 	return Config{
-		AuthMethod: "oauth",
+		AuthMethod:       "oauth",
+		ConflictStrategy: "skip",
 		// TokenPath is left empty and resolved at runtime via ResolvedTokenPath
 		// (relative to the config dir) so no absolute path is persisted.
 		Scopes:         []string{"https://www.googleapis.com/auth/drive.readonly"},

@@ -18,6 +18,10 @@ type SyncedFile struct {
 	LastSynced    string `json:"last_synced"`
 	ParentID      string `json:"parent_id"`
 	IsFolder      bool   `json:"is_folder"`
+	// LocalSize and LocalModified capture the local filesystem state at the
+	// time of the last successful sync, used to detect user modifications.
+	LocalSize     int64  `json:"local_size"`
+	LocalModified string `json:"local_modified"`
 }
 
 // UpsertFile inserts or updates a synced file record.
@@ -30,19 +34,20 @@ func (db *DB) UpsertFile(f SyncedFile) error {
 		isFolder = 1
 	}
 	_, err := db.conn.Exec(`
-		INSERT INTO synced_files (file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO synced_files (file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder, local_size, local_modified)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(file_id) DO UPDATE SET
 			name = excluded.name, mime_type = excluded.mime_type, md5_checksum = excluded.md5_checksum,
 			size = excluded.size, drive_modified = excluded.drive_modified, local_path = excluded.local_path,
-			last_synced = excluded.last_synced, parent_id = excluded.parent_id, is_folder = excluded.is_folder
-	`, f.FileID, f.Name, f.MimeType, f.MD5Checksum, f.Size, f.DriveModified, f.LocalPath, f.LastSynced, f.ParentID, isFolder)
+			last_synced = excluded.last_synced, parent_id = excluded.parent_id, is_folder = excluded.is_folder,
+			local_size = excluded.local_size, local_modified = excluded.local_modified
+	`, f.FileID, f.Name, f.MimeType, f.MD5Checksum, f.Size, f.DriveModified, f.LocalPath, f.LastSynced, f.ParentID, isFolder, f.LocalSize, f.LocalModified)
 	return err
 }
 
 // GetFile returns a single synced file by its Drive file ID.
 func (db *DB) GetFile(fileID string) (*SyncedFile, error) {
-	row := db.conn.QueryRow(`SELECT file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder FROM synced_files WHERE file_id = ?`, fileID)
+	row := db.conn.QueryRow(`SELECT file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder, local_size, local_modified FROM synced_files WHERE file_id = ?`, fileID)
 	return scanFile(row)
 }
 
@@ -51,9 +56,9 @@ func (db *DB) ListFiles(search string) ([]SyncedFile, error) {
 	var rows *sql.Rows
 	var err error
 	if search != "" {
-		rows, err = db.conn.Query(`SELECT file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder FROM synced_files WHERE name LIKE ? ORDER BY name`, "%"+search+"%")
+		rows, err = db.conn.Query(`SELECT file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder, local_size, local_modified FROM synced_files WHERE name LIKE ? ORDER BY name`, "%"+search+"%")
 	} else {
-		rows, err = db.conn.Query(`SELECT file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder FROM synced_files ORDER BY name`)
+		rows, err = db.conn.Query(`SELECT file_id, name, mime_type, md5_checksum, size, drive_modified, local_path, last_synced, parent_id, is_folder, local_size, local_modified FROM synced_files ORDER BY name`)
 	}
 	if err != nil {
 		return nil, err
@@ -64,7 +69,7 @@ func (db *DB) ListFiles(search string) ([]SyncedFile, error) {
 	for rows.Next() {
 		var f SyncedFile
 		var isFolder int
-		if err := rows.Scan(&f.FileID, &f.Name, &f.MimeType, &f.MD5Checksum, &f.Size, &f.DriveModified, &f.LocalPath, &f.LastSynced, &f.ParentID, &isFolder); err != nil {
+		if err := rows.Scan(&f.FileID, &f.Name, &f.MimeType, &f.MD5Checksum, &f.Size, &f.DriveModified, &f.LocalPath, &f.LastSynced, &f.ParentID, &isFolder, &f.LocalSize, &f.LocalModified); err != nil {
 			return nil, err
 		}
 		f.IsFolder = isFolder != 0
@@ -108,7 +113,7 @@ type scanner interface {
 func scanFile(s scanner) (*SyncedFile, error) {
 	var f SyncedFile
 	var isFolder int
-	err := s.Scan(&f.FileID, &f.Name, &f.MimeType, &f.MD5Checksum, &f.Size, &f.DriveModified, &f.LocalPath, &f.LastSynced, &f.ParentID, &isFolder)
+	err := s.Scan(&f.FileID, &f.Name, &f.MimeType, &f.MD5Checksum, &f.Size, &f.DriveModified, &f.LocalPath, &f.LastSynced, &f.ParentID, &isFolder, &f.LocalSize, &f.LocalModified)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("file not found")

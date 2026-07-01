@@ -44,6 +44,12 @@ export interface SyncedFile {
   last_synced: string;
   parent_id: string;
   is_folder: boolean;
+  /**
+   * LocalSize and LocalModified capture the local filesystem state at the
+   * time of the last successful sync, used to detect user modifications.
+   */
+  local_size: number /* int64 */;
+  local_modified: string;
 }
 
 //////////
